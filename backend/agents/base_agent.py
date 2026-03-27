@@ -63,6 +63,11 @@ class BaseAgent(ABC):
         multimodal_attachments: list[dict[str, Any]] = []
         multimodal_transcripts: list[dict[str, Any]] = []
         if request.context:
+            agent_slug = str(
+                request.context.get("agent_slug")
+                or request.context.get("requested_agent")
+                or ""
+            ).strip()
             if request.context.get("force_local_model"):
                 effective_model = get_local_workflow_model()
             else:
@@ -70,11 +75,18 @@ class BaseAgent(ABC):
                 if model_override:
                     effective_model = model_override
                 else:
-                    agent_slug = str(
-                        request.context.get("agent_slug")
-                        or request.context.get("requested_agent")
-                        or ""
-                    ).strip()
+                    scoped_overrides = request.context.get("agent_model_overrides") or {}
+                    scoped_model = ""
+                    if isinstance(scoped_overrides, dict) and agent_slug:
+                        scoped_model = str(scoped_overrides.get(agent_slug) or "").strip()
+                    if scoped_model:
+                        effective_model = scoped_model
+                        routing_metadata = {
+                            "selected_model": scoped_model,
+                            "reason": f"context override for '{agent_slug}'",
+                            "agent_slug": agent_slug,
+                        }
+                if not routing_metadata:
                     if agent_slug:
                         approx_tokens = self._estimate_context_tokens(request.user_input, request.context)
                         decision = get_model_router().select(agent_slug, context_tokens=approx_tokens)
@@ -141,6 +153,8 @@ class BaseAgent(ABC):
     def _format_context(self, context: Dict[str, Any]) -> str:
         parts: list[str] = []
         for key, value in context.items():
+            if key == "agent_model_overrides":
+                continue
             if isinstance(value, (dict, list)):
                 parts.append(f"{key}:\n{json.dumps(value, indent=2, ensure_ascii=True)}")
             else:

@@ -1,7 +1,4 @@
-"""
-Studio OS Artifact Taxonomy.
-Defines valid artifact types per domain and their required/produced contracts.
-"""
+"""EduOS artifact taxonomy."""
 from __future__ import annotations
 
 from enum import Enum
@@ -20,6 +17,10 @@ class ArtifactType(str, Enum):
     EDIT_PASS = "edit_pass"
 
     RESEARCH_BRIEF = "research_brief"
+    REVIEW_BRIEF = "review_brief"
+    REVIEW_MODEL_A = "review_model_a"
+    REVIEW_MODEL_B = "review_model_b"
+    REVIEW_SYNTHESIS = "review_synthesis"
     SCRIPT = "script"
     ACCURACY_REPORT = "accuracy_report"
     SEO_PACKAGE = "seo_package"
@@ -56,6 +57,10 @@ DOMAIN_ARTIFACTS = {
     "web": [
         ArtifactType.EXECUTION_BRIEF,
         ArtifactType.RESEARCH_BRIEF,
+        ArtifactType.REVIEW_BRIEF,
+        ArtifactType.REVIEW_MODEL_A,
+        ArtifactType.REVIEW_MODEL_B,
+        ArtifactType.REVIEW_SYNTHESIS,
         ArtifactType.SCRIPT,
         ArtifactType.ACCURACY_REPORT,
         ArtifactType.SEO_PACKAGE,
@@ -74,6 +79,10 @@ DOMAIN_ARTIFACTS = {
     "youtube": [
         ArtifactType.EXECUTION_BRIEF,
         ArtifactType.RESEARCH_BRIEF,
+        ArtifactType.REVIEW_BRIEF,
+        ArtifactType.REVIEW_MODEL_A,
+        ArtifactType.REVIEW_MODEL_B,
+        ArtifactType.REVIEW_SYNTHESIS,
         ArtifactType.SCRIPT,
         ArtifactType.ACCURACY_REPORT,
         ArtifactType.SEO_PACKAGE,
@@ -222,6 +231,45 @@ MEDIA_PIPELINE_CONTRACTS: List[ArtifactContract] = [
     ArtifactContract(
         artifact_type=ArtifactType.PUBLISH_PACKAGE,
         requires=[ArtifactType.DISTRIBUTION_PACKAGE],
+        produces=ArtifactType.PUBLISH_PACKAGE,
+    ),
+]
+
+
+REVIEW_PIPELINE_CONTRACTS: List[ArtifactContract] = [
+    ArtifactContract(
+        artifact_type=ArtifactType.REVIEW_BRIEF,
+        requires=[],
+        produces=ArtifactType.REVIEW_BRIEF,
+    ),
+    ArtifactContract(
+        artifact_type=ArtifactType.RESEARCH_BRIEF,
+        requires=[ArtifactType.REVIEW_BRIEF],
+        produces=ArtifactType.RESEARCH_BRIEF,
+    ),
+    ArtifactContract(
+        artifact_type=ArtifactType.REVIEW_MODEL_A,
+        requires=[ArtifactType.REVIEW_BRIEF, ArtifactType.RESEARCH_BRIEF],
+        produces=ArtifactType.REVIEW_MODEL_A,
+    ),
+    ArtifactContract(
+        artifact_type=ArtifactType.REVIEW_MODEL_B,
+        requires=[ArtifactType.REVIEW_BRIEF, ArtifactType.RESEARCH_BRIEF],
+        produces=ArtifactType.REVIEW_MODEL_B,
+    ),
+    ArtifactContract(
+        artifact_type=ArtifactType.REVIEW_SYNTHESIS,
+        requires=[
+            ArtifactType.REVIEW_BRIEF,
+            ArtifactType.RESEARCH_BRIEF,
+            ArtifactType.REVIEW_MODEL_A,
+            ArtifactType.REVIEW_MODEL_B,
+        ],
+        produces=ArtifactType.REVIEW_SYNTHESIS,
+    ),
+    ArtifactContract(
+        artifact_type=ArtifactType.PUBLISH_PACKAGE,
+        requires=[ArtifactType.REVIEW_SYNTHESIS],
         produces=ArtifactType.PUBLISH_PACKAGE,
     ),
 ]

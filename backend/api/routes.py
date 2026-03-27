@@ -95,6 +95,7 @@ from database_models import (
     RunRecord,
 )
 from services.brand_autocomplete import generate_brand_autocomplete
+from services.brand_presets import get_brand_preset, list_brand_presets, seed_brand_bible
 from services.document_indexing import build_vector_documents_for_file, build_vector_documents_for_structured_document
 from services.memory import (
     generate_project_memory_autocomplete,
@@ -1002,6 +1003,19 @@ async def list_projects(db: Session = Depends(get_db)):
     return {"projects": [serialize_project(project) for project in projects]}
 
 
+@router.get("/brand-presets")
+async def list_brand_presets_route():
+    return {"presets": list_brand_presets()}
+
+
+@router.get("/brand-presets/{slug}")
+async def get_brand_preset_route(slug: str):
+    try:
+        return get_brand_preset(slug)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Unknown brand preset '{slug}'.") from exc
+
+
 @router.post("/projects")
 async def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
     try:
@@ -1009,12 +1023,17 @@ async def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    brand_bible = dict(payload.brand_bible or {})
+    if "web" in domains or "youtube" in domains:
+        preset_slug = str(brand_bible.get("brand_preset") or settings.DEFAULT_BRAND_PRESET or "").strip().lower()
+        brand_bible = seed_brand_bible(brand_bible, preset_slug=preset_slug)
+
     project = ProjectRecord(
         name=payload.name,
         description=payload.description,
         domains=domains,
         story_bible=payload.story_bible,
-        brand_bible=payload.brand_bible,
+        brand_bible=brand_bible,
     )
     db.add(project)
     db.commit()

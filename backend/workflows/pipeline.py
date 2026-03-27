@@ -10,6 +10,7 @@ from database_models import ProjectRecord
 from services.media_tools import get_project_media_tools_context
 from services.memory import get_memory_context, update_bibles_from_artifact
 from services.orchestration import persist_artifact
+from services.review_models import build_review_agent_model_overrides
 from workflows.gate import evaluate_gate
 from workflows.planner import PipelineStep, StudioPlan
 from workflows.state import SharedState
@@ -38,7 +39,12 @@ class StudioPipeline:
     ) -> PipelineResult:
         state = SharedState(task=plan.task, context=context or {})
         result = PipelineResult(plan=plan)
-        current_context = context or {}
+        current_context = dict(context or {})
+        if plan.pipeline_kind == "review":
+            current_context["agent_model_overrides"] = {
+                **dict(current_context.get("agent_model_overrides") or {}),
+                **build_review_agent_model_overrides(),
+            }
 
         for step in plan.steps:
             missing = [artifact for artifact in step.requires_artifacts if artifact not in state.artifacts]

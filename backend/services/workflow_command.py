@@ -42,6 +42,7 @@ def _allowed_pipeline_kinds(project: ProjectRecord) -> list[str]:
         allowed.append("writing")
     if "web" in domains or "youtube" in domains:
         allowed.append("media")
+        allowed.append("review")
     if "writing" in domains and ("web" in domains or "youtube" in domains):
         allowed.append("promo")
     return allowed
@@ -214,6 +215,33 @@ def _fallback_plan(
 ) -> dict[str, Any]:
     lowered = command.lower()
     allowed_pipeline_kinds = _allowed_pipeline_kinds(project)
+
+    if "review" in allowed_pipeline_kinds and any(
+        token in lowered
+        for token in (
+            "critical review",
+            "hypothesis review",
+            "review the hypothesis",
+            "evaluate the evidence",
+            "what is actually supported",
+            "unbiased review",
+            "major hypothesis",
+            "synthesize reviewers",
+        )
+    ):
+        return {
+            "summary": "Run the EduOS critical review pipeline.",
+            "rationale": "The request asks for a structured evidence review that should preserve reviewer artefacts.",
+            "execution_mode": "pipeline",
+            "task": command,
+            "pipeline_kind": "review",
+            "workforce": None,
+            "agent_id": None,
+            "steps": [],
+            "context_focus": ["review brief", "research brief", "stored reviewer artefacts", "publication packaging"],
+            "referenced_document_ids": referenced_document_ids,
+            "referenced_artifact_ids": referenced_artifact_ids,
+        }
 
     if any(token in lowered for token in ("full workflow", "end-to-end", "end to end", "pipeline", "all stages")):
         if "media" in allowed_pipeline_kinds:
@@ -529,8 +557,8 @@ async def plan_project_workflow_command(
         {
             "role": "system",
             "content": (
-                "You are StudioOS Local Workflow Command Planner. "
-                "Convert the user command into a valid StudioOS execution plan that uses only the provided "
+                "You are EduOS Local Workflow Command Planner. "
+                "Convert the user command into a valid EduOS execution plan that uses only the provided "
                 "pipeline kinds and workforce.agent pairs. "
                 "Return strict JSON with keys: "
                 "summary, rationale, execution_mode, task, pipeline_kind, workforce, agent_id, steps, context_focus. "
@@ -538,7 +566,8 @@ async def plan_project_workflow_command(
                 "Use agent for one focused stage, pipeline for a standard built-in workflow, and pipeline_builder "
                 "for a custom multi-stage sequence. "
                 "Use conversation_history when the latest user message depends on earlier turns. "
-                "Use project_media_inventory and brand_bible when the request is about media analysis, packaging, or branding. "
+                "Use project_media_inventory and brand_bible when the request is about media analysis, packaging, branding, or site/channel publishing. "
+                "Prefer the review pipeline for requests about critical hypothesis reviews, competing models, or evidence-grounded educational syntheses. "
                 "Treat enabled_media_tools as real runtime options that downstream agents can rely on. "
                 "Each pipeline_builder step must include workforce, agent_id, description, artifact_type, "
                 "requires_artifacts, is_gate, and gate_input_artifact. "

@@ -1,6 +1,6 @@
-"""ResearchAgent-style model routing for StudioOS.
+"""ResearchAgent-style model routing for EduOS.
 
-This ports the same persisted routing concept into StudioOS while keeping the
+This ports the same persisted routing concept into EduOS while keeping the
 runtime compatible with the simpler LiteLLM-based model client already used
 here. Model ids are stored in the exact runtime format the app can execute,
 for example ``openrouter/auto`` or ``ollama/llama3``.
@@ -54,6 +54,11 @@ MODEL_QUALITY: Dict[str, int] = {
 AGENT_TIER_MAP: Dict[str, ModelTier] = {
     "coordination.director": ModelTier.REASONING,
     "media.research": ModelTier.BALANCED,
+    "review.review_planner": ModelTier.REASONING,
+    "review.reviewer_a": ModelTier.REASONING,
+    "review.reviewer_b": ModelTier.REASONING,
+    "review.synthesizer": ModelTier.LONG_CONTEXT,
+    "review.publisher": ModelTier.BALANCED,
     "media.scriptwriter": ModelTier.REASONING,
     "media.accuracy_reviewer": ModelTier.REASONING,
     "media.script_critic": ModelTier.REASONING,

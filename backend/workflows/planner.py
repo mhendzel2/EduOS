@@ -155,6 +155,54 @@ PIPELINE_LIBRARY: dict[str, list[PipelineStep]] = {
             requires_artifacts=[ArtifactType.ASSEMBLY_PLAN.value],
         ),
     ],
+    "review": [
+        PipelineStep(1, "review", "review_planner", "Define the critical review brief", ArtifactType.REVIEW_BRIEF.value),
+        PipelineStep(
+            2,
+            "media",
+            "research",
+            "Collect the evidence-oriented research brief",
+            ArtifactType.RESEARCH_BRIEF.value,
+            requires_artifacts=[ArtifactType.REVIEW_BRIEF.value],
+        ),
+        PipelineStep(
+            3,
+            "review",
+            "reviewer_a",
+            "Run the first independent critical review",
+            ArtifactType.REVIEW_MODEL_A.value,
+            requires_artifacts=[ArtifactType.REVIEW_BRIEF.value, ArtifactType.RESEARCH_BRIEF.value],
+        ),
+        PipelineStep(
+            4,
+            "review",
+            "reviewer_b",
+            "Run the second independent critical review",
+            ArtifactType.REVIEW_MODEL_B.value,
+            requires_artifacts=[ArtifactType.REVIEW_BRIEF.value, ArtifactType.RESEARCH_BRIEF.value],
+        ),
+        PipelineStep(
+            5,
+            "review",
+            "synthesizer",
+            "Synthesize the two reviewer artefacts into the canonical review",
+            ArtifactType.REVIEW_SYNTHESIS.value,
+            requires_artifacts=[
+                ArtifactType.REVIEW_BRIEF.value,
+                ArtifactType.RESEARCH_BRIEF.value,
+                ArtifactType.REVIEW_MODEL_A.value,
+                ArtifactType.REVIEW_MODEL_B.value,
+            ],
+        ),
+        PipelineStep(
+            6,
+            "review",
+            "publisher",
+            "Package the review for CellNucleus website, YouTube, and NotebookLM",
+            ArtifactType.PUBLISH_PACKAGE.value,
+            requires_artifacts=[ArtifactType.REVIEW_SYNTHESIS.value],
+        ),
+    ],
     "promo": [
         PipelineStep(1, "promo", "campaign_planner", "Create the campaign plan", ArtifactType.PROMO_BRIEF.value),
         PipelineStep(
@@ -270,6 +318,9 @@ class StudioPlanner:
         if "writing" in domain_set:
             return "writing"
         if "web" in domain_set or "youtube" in domain_set:
+            if pipeline_kind == "review":
+                return "review"
+        if "web" in domain_set or "youtube" in domain_set:
             return "media"
         raise ValueError("Could not infer pipeline kind from project domains.")
 
@@ -278,6 +329,8 @@ class StudioPlanner:
         if pipeline_kind == "writing":
             return "writing" in domain_set
         if pipeline_kind == "media":
+            return "web" in domain_set or "youtube" in domain_set
+        if pipeline_kind == "review":
             return "web" in domain_set or "youtube" in domain_set
         if pipeline_kind == "promo":
             return "writing" in domain_set and ("web" in domain_set or "youtube" in domain_set)

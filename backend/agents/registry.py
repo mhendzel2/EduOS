@@ -1,6 +1,4 @@
-"""
-Workforce registry for StudioOS.
-"""
+"""Workforce registry for EduOS."""
 from __future__ import annotations
 
 from agents.base_agent import BaseAgent
@@ -28,6 +26,13 @@ from agents.workforces.promo import (
     PromoAdapterAgent,
     SpoilerGuardianAgent,
     StoryHookExtractorAgent,
+)
+from agents.workforces.review import (
+    ReviewPlannerAgent,
+    ReviewPublisherAgent,
+    ReviewerAAgent,
+    ReviewerBAgent,
+    ReviewSynthesizerAgent,
 )
 from agents.workforces.writing import (
     CharacterArcAgent,
@@ -85,6 +90,14 @@ PROMO_WORKFORCE: dict[str, BaseAgent] = {
     "promo_adapter": PromoAdapterAgent(),
 }
 
+REVIEW_WORKFORCE: dict[str, BaseAgent] = {
+    "review_planner": ReviewPlannerAgent(),
+    "reviewer_a": ReviewerAAgent(),
+    "reviewer_b": ReviewerBAgent(),
+    "synthesizer": ReviewSynthesizerAgent(),
+    "publisher": ReviewPublisherAgent(),
+}
+
 
 def get_active_workforces(domains: list[str]) -> dict[str, dict[str, BaseAgent]]:
     domain_set = set(domains)
@@ -94,6 +107,7 @@ def get_active_workforces(domains: list[str]) -> dict[str, dict[str, BaseAgent]]
         workforces["writing"] = WRITING_WORKFORCE
     if "web" in domain_set or "youtube" in domain_set:
         workforces["media"] = MEDIA_WORKFORCE
+        workforces["review"] = REVIEW_WORKFORCE
     if "writing" in domain_set and ("web" in domain_set or "youtube" in domain_set):
         workforces["promo"] = PROMO_WORKFORCE
 
