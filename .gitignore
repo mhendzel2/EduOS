@@ -13,6 +13,7 @@ venv/
 .env.*
 !.env.example
 !.env.*.example
+google-oauth-client.json
 
 backend/.env
 backend/studio_os.db

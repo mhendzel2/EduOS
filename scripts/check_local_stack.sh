@@ -10,8 +10,8 @@ studioos_require_cmd redis-cli
 studioos_load_root_env
 
 redis_url="${REDIS_URL:-redis://127.0.0.1:6379/0}"
-backend_url="${NEXT_PUBLIC_API_URL:-http://127.0.0.1:8015}"
-frontend_url="${FRONTEND_URL:-http://127.0.0.1:3015}"
+backend_url="${NEXT_PUBLIC_API_URL:-http://127.0.0.1:8090}"
+frontend_url="${FRONTEND_URL:-http://127.0.0.1:3090}"
 
 printf 'Checking Redis at %s\n' "${redis_url}"
 redis-cli -u "${redis_url}" ping

@@ -15,6 +15,21 @@ class HealthResponse(BaseModel):
     upload_dir: str
 
 
+class GoogleOAuthClientStatusResponse(BaseModel):
+    configured: bool
+    discovered: bool
+    path: str = ""
+    exists: bool
+    valid: bool
+    client_type: str = ""
+    project_id: str = ""
+    client_id_hint: str = ""
+    redirect_uri_count: int = 0
+    auth_uri_present: bool = False
+    token_uri_present: bool = False
+    message: str = ""
+
+
 class TelegramControlStatusResponse(BaseModel):
     enabled: bool
     polling_enabled: bool

@@ -24,6 +24,7 @@ from api.schemas import (
     BrandAutocompleteResponse,
     DocumentSearchResponse,
     DocumentSearchResultResponse,
+    GoogleOAuthClientStatusResponse,
     HealthResponse,
     MediaAssetListResponse,
     MediaAssetResponse,
@@ -97,6 +98,7 @@ from database_models import (
 from services.brand_autocomplete import generate_brand_autocomplete
 from services.brand_presets import get_brand_preset, list_brand_presets, seed_brand_bible
 from services.document_indexing import build_vector_documents_for_file, build_vector_documents_for_structured_document
+from services.google_oauth import get_google_oauth_client_status
 from services.memory import (
     generate_project_memory_autocomplete,
     generate_workspace_memory_autocomplete,
@@ -883,6 +885,11 @@ async def telegram_control_webhook(
 @router.get("/runtime/ollama")
 async def get_ollama_runtime_status() -> OllamaBootstrapStatusResponse:
     return OllamaBootstrapStatusResponse(**(await get_ollama_bootstrap_status()))
+
+
+@router.get("/runtime/google-oauth")
+async def get_google_oauth_runtime_status() -> GoogleOAuthClientStatusResponse:
+    return GoogleOAuthClientStatusResponse(**get_google_oauth_client_status())
 
 
 @router.post("/runtime/ollama/start")

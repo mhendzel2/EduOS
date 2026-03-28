@@ -37,7 +37,7 @@ import type {
 export type { ModelRoutingConfig } from './types';
 
 const API_TARGET_STORAGE_KEY = 'studioos.apiTarget';
-const LOCAL_API_FALLBACK = 'http://127.0.0.1:8015';
+const LOCAL_API_FALLBACK = 'http://127.0.0.1:8090';
 
 export function normalizeApiHost(value: string): string {
   const trimmed = value.trim().replace(/\/+$/, '');
@@ -61,7 +61,7 @@ export function getServerSafeDefaultApiHost(): string {
 export function getDefaultApiHost(): string {
   const fallback = getServerSafeDefaultApiHost();
   if (typeof window !== 'undefined' && window.location?.hostname) {
-    return `${window.location.protocol}//${window.location.hostname}:8015`;
+    return `${window.location.protocol}//${window.location.hostname}:8090`;
   }
   return fallback;
 }

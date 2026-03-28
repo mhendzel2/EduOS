@@ -67,7 +67,7 @@ allowed_origins = [
     for origin in os.getenv(
         "ALLOWED_ORIGINS",
         (
-            "http://localhost:3015,http://localhost:3016,http://127.0.0.1:3015,http://127.0.0.1:3016,"
+            "http://localhost:3090,http://localhost:3091,http://127.0.0.1:3090,http://127.0.0.1:3091,"
             "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001"
         ),
     ).split(",")
@@ -88,4 +88,4 @@ app.include_router(router, prefix=f"/api/{settings.API_VERSION}")
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8015, reload=settings.DEBUG)
+    uvicorn.run("main:app", host="0.0.0.0", port=8090, reload=settings.DEBUG)

@@ -47,6 +47,20 @@ def _resolve_path(value: str) -> str:
     return str((BASE_DIR / path).resolve())
 
 
+def _resolve_root_path(value: str) -> str:
+    path = Path(value)
+    if path.is_absolute():
+        return str(path)
+    return str((ROOT_DIR / path).resolve())
+
+
+def _resolve_optional_root_path(value: str) -> str:
+    trimmed = value.strip()
+    if not trimmed:
+        return ""
+    return _resolve_root_path(trimmed)
+
+
 def _resolve_database_url(value: str) -> str:
     sqlite_prefix = "sqlite:///"
     if not value.startswith(sqlite_prefix):
@@ -70,6 +84,9 @@ class Settings:
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
     YOUTUBE_API_KEY: str = os.getenv("YOUTUBE_API_KEY", "")
+    GOOGLE_OAUTH_CLIENT_FILE: str = _resolve_optional_root_path(
+        os.getenv("GOOGLE_OAUTH_CLIENT_FILE", "")
+    )
     PROVIDER_PRIORITY: str = os.getenv("PROVIDER_PRIORITY", "openrouter,google,ollama")
     DEFAULT_MODEL: str = os.getenv("DEFAULT_MODEL", "openrouter/auto")
     MODEL_ROUTING_CONFIG_PATH: str = _resolve_path(

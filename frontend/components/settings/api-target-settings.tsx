@@ -120,7 +120,7 @@ export default function ApiTargetSettings() {
             Future frontend requests use this immediately. If blank, StudioOS falls back to
             <code className="mx-1 rounded bg-slate-800 px-1.5 py-0.5 text-slate-200">NEXT_PUBLIC_API_URL</code>
             or the current browser hostname on port
-            <code className="ml-1 rounded bg-slate-800 px-1.5 py-0.5 text-slate-200">8000</code>.
+            <code className="ml-1 rounded bg-slate-800 px-1.5 py-0.5 text-slate-200">8090</code>.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <Button onClick={handleSave} loading={saving} suppressHydrationWarning>
