@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import mimetypes
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -104,7 +105,19 @@ class ImportSpec:
     description: str
 
 
-_AGENT0_BASE = Path("C:/Users/mjhen/Github/Agent0/agent-zero/usr/workdir")
+_DEFAULT_AGENT0_BASE = Path("C:/Users/mjhen/Github/Agent0/agent-zero/usr/workdir")
+_DEFAULT_CELLNUCLEUS_SITE_PATH = Path("C:/Users/mjhen/Github/cellnucleus.com")
+
+
+def _env_path(name: str, default: Path) -> Path:
+    raw = str(os.getenv(name, "")).strip()
+    if not raw:
+        return default
+    return Path(raw).expanduser()
+
+
+_AGENT0_BASE = _env_path("AGENT0_WORKDIR", _DEFAULT_AGENT0_BASE)
+_CELLNUCLEUS_SITE_PATH = _env_path("CELLNUCLEUS_SITE_PATH", _DEFAULT_CELLNUCLEUS_SITE_PATH)
 
 IMPORT_SPECS = {
     "dystopian-novel": ImportSpec(
@@ -121,9 +134,9 @@ IMPORT_SPECS = {
     ),
     "cellnucleus": ImportSpec(
         project_name="CellNucleus.com",
-        source_dir=_AGENT0_BASE / "cellnucleus_site",
+        source_dir=_CELLNUCLEUS_SITE_PATH,
         domains=["writing", "web", "youtube"],
-        description="Imported from Agent0 cellnucleus_site workspace.",
+        description="Imported from the local CellNucleus website workspace.",
     ),
 }
 

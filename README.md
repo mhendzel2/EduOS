@@ -71,7 +71,15 @@ Important environment variables:
 - `PROVIDER_PRIORITY` and `DEFAULT_MODEL`: top-level routing defaults
 - `LOCAL_AUTOFILL_MODEL` and `LOCAL_WORKFLOW_MODEL`: local Ollama-backed behavior
 - `GOOGLE_OAUTH_CLIENT_FILE`: Google OAuth client JSON path
+- `CELLNUCLEUS_SITE_PATH`: persistent local path for the CellNucleus website workspace
+- `AGENT0_WORKDIR`: base directory for the remaining Agent0 project imports
 - `TELEGRAM_BOT_TOKEN` and `TELEGRAM_POLLING_ENABLED`: optional Telegram remote control
+
+## Content Sources
+
+- CellNucleus website source stays at `C:/Users/mjhen/Github/cellnucleus.com`
+- Agent0-backed imports still use `C:/Users/mjhen/Github/Agent0/agent-zero/usr/workdir` by default
+- The Agent0 import helper now treats CellNucleus as a fixed local website workspace while leaving the other Agent0 imports intact
 
 ## Install Dependencies
 
