@@ -112,6 +112,28 @@ class ProjectImportResponse(BaseModel):
     indexing_failed: int
 
 
+class ProjectInboxStatusResponse(BaseModel):
+    project_id: str
+    inbox_path: str
+    exists: bool
+    importable_file_count: int
+    sample_files: list[str] = Field(default_factory=list)
+
+
+class ProjectWebsiteImportRequest(BaseModel):
+    site_url: str
+    max_pages: int = 25
+
+
+class ProjectWebsiteImportResponse(BaseModel):
+    project_id: str
+    normalized_site_url: str
+    selected_pages: int
+    imported: int
+    skipped_existing: int
+    indexing_failed: int
+
+
 class StructuredDocumentCreateRequest(BaseModel):
     title: str
     abstract: str = ""
