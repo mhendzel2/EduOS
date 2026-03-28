@@ -120,12 +120,6 @@ _AGENT0_BASE = _env_path("AGENT0_WORKDIR", _DEFAULT_AGENT0_BASE)
 _CELLNUCLEUS_SITE_PATH = _env_path("CELLNUCLEUS_SITE_PATH", _DEFAULT_CELLNUCLEUS_SITE_PATH)
 
 IMPORT_SPECS = {
-    "dystopian-novel": ImportSpec(
-        project_name="Dystopian Novel",
-        source_dir=_AGENT0_BASE / "dystopian-novel",
-        domains=["writing", "web", "youtube"],
-        description="Imported from Agent0 dystopian-novel workspace.",
-    ),
     "polymarket": ImportSpec(
         project_name="Polymarket Site",
         source_dir=_AGENT0_BASE / "polymarket_geo_youtube",

@@ -129,7 +129,7 @@ MEDIA_TOOL_DEFINITIONS: list[dict[str, Any]] = [
         ],
         "install_command": "Set YOUTUBE_API_KEY in the StudioOS environment",
         "notes": [
-            "Requires a YouTube Data API key configured as YOUTUBE_API_KEY.",
+            "Supports either the global YOUTUBE_API_KEY env var or a project-specific youtube_api_key override.",
             "This currently collects top-level comments and engagement counts, not reply threads.",
         ],
         "auth_required": True,
@@ -137,6 +137,7 @@ MEDIA_TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "config": {
             "video_reference": "",
             "max_results": 25,
+            "youtube_api_key": "",
         },
     },
     {
@@ -162,6 +163,7 @@ MEDIA_TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "enabled": False,
         "config": {
             "channel_reference": "",
+            "youtube_api_key": "",
             "local_upload_path": "",
             "thumbnail_input_path": "",
         },
@@ -386,14 +388,17 @@ def get_media_tool_runtime_status(tool: dict[str, Any]) -> dict[str, Any]:
         }
 
     if tool_id == "youtube_comment_collector":
-        api_key_configured = bool(settings.YOUTUBE_API_KEY.strip())
+        project_api_key = str(tool.get("config", {}).get("youtube_api_key") or "").strip()
+        api_key_configured = bool(project_api_key or settings.YOUTUBE_API_KEY.strip())
         return {
             "runtime_available": api_key_configured,
             "runtime_ready": api_key_configured and bool(tool.get("enabled")),
             "runtime_message": (
-                "YouTube Data API key is configured for comment collection."
+                "Project-specific YouTube Data API key is configured for comment collection."
+                if project_api_key
+                else "YouTube Data API key is configured for comment collection."
                 if api_key_configured
-                else "Set YOUTUBE_API_KEY to enable YouTube comment collection."
+                else "Set a project youtube_api_key or global YOUTUBE_API_KEY to enable comment collection."
             ),
             "supported_actions": ["collect_comment_feedback"],
         }

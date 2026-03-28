@@ -3,6 +3,10 @@ from __future__ import annotations
 import json
 from typing import Any, Iterable, Optional
 
+from baseos.contracts import ProjectMemory as ContractProjectMemory
+from baseos.contracts import WorkspaceMemory as ContractWorkspaceMemory
+from baseos.services.memory_compactor import global_memory_compactor
+from config import settings
 from sqlalchemy.orm import Session
 
 from database_models import (
@@ -116,6 +120,52 @@ def serialize_workspace_memory(record: WorkspaceMemoryRecord) -> dict[str, Any]:
     }
 
 
+def build_workspace_memory_contract(record: WorkspaceMemoryRecord | None) -> ContractWorkspaceMemory:
+    if record is None:
+        return ContractWorkspaceMemory()
+    return ContractWorkspaceMemory(
+        workspace_id=record.id,
+        summary=record.summary or "",
+        pinned_facts=normalize_pinned_facts(record.pinned_facts),
+        active_token_estimate=record.active_token_estimate or 0,
+        compaction_count=record.compaction_count or 0,
+    )
+
+
+def build_project_memory_contract(
+    project: ProjectRecord,
+    record: ProjectMemoryRecord | None,
+) -> ContractProjectMemory:
+    return ContractProjectMemory(
+        project_id=project.id,
+        project_name=project.name or "",
+        description=project.description or "",
+        domains=list(project.domains or []),
+        story_bible=dict(project.story_bible or {}),
+        brand_bible=dict(project.brand_bible or {}),
+        summary=(record.summary if record else "") or "",
+        pinned_facts=normalize_pinned_facts(record.pinned_facts if record else []),
+        active_token_estimate=(record.active_token_estimate if record else 0) or 0,
+        compaction_count=(record.compaction_count if record else 0) or 0,
+    )
+
+
+def get_memory_contracts(
+    project: ProjectRecord,
+    db: Optional[Session] = None,
+) -> tuple[ContractWorkspaceMemory, ContractProjectMemory]:
+    project_memory = getattr(project, "memory", None)
+    workspace_memory = None
+    if db is not None:
+        if project_memory is None:
+            project_memory = db.query(ProjectMemoryRecord).filter(ProjectMemoryRecord.project_id == project.id).first()
+        workspace_memory = db.query(WorkspaceMemoryRecord).filter(WorkspaceMemoryRecord.id == WORKSPACE_MEMORY_ID).first()
+    return (
+        build_workspace_memory_contract(workspace_memory),
+        build_project_memory_contract(project, project_memory),
+    )
+
+
 def get_or_create_workspace_memory(db: Session) -> WorkspaceMemoryRecord:
     record = db.query(WorkspaceMemoryRecord).filter(WorkspaceMemoryRecord.id == WORKSPACE_MEMORY_ID).first()
     if record:
@@ -140,11 +190,44 @@ def get_or_create_project_memory(db: Session, project_id: str) -> ProjectMemoryR
     return record
 
 
-def update_memory_record(record: ProjectMemoryRecord | WorkspaceMemoryRecord, *, summary: str, pinned_facts: Any) -> None:
+async def update_memory_record(
+    record: ProjectMemoryRecord | WorkspaceMemoryRecord,
+    *,
+    summary: str,
+    pinned_facts: Any,
+) -> None:
     normalized_facts = normalize_pinned_facts(pinned_facts)
     record.summary = summary.strip()
     record.pinned_facts = normalized_facts
     record.active_token_estimate = _estimate_tokens(record.summary, normalized_facts)
+    if settings.MEMORY_COMPACTION_ENABLED:
+        if isinstance(record, ProjectMemoryRecord):
+            await global_memory_compactor.compact_project_memory(record)
+        else:
+            await global_memory_compactor.compact_workspace_memory(record)
+
+
+async def search_memory_archives(
+    *,
+    scope: str,
+    scope_id: str,
+    query: str,
+    limit: int = 3,
+) -> list[dict[str, Any]]:
+    matches = await global_memory_compactor.search_archives(
+        scope=scope,
+        scope_id=scope_id,
+        query=query,
+        n_results=limit,
+    )
+    return [
+        {
+            "content": match.content,
+            "score": match.score,
+            "metadata": dict(match.metadata or {}),
+        }
+        for match in matches
+    ]
 
 
 def get_memory_context(project: ProjectRecord, db: Optional[Session] = None) -> dict[str, Any]:

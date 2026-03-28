@@ -14,6 +14,7 @@ if str(BACKEND_DIR) not in sys.path:
 
 from api import routes
 from api.schemas import MemoryAutocompleteRequest, MemoryUpdateRequest
+from baseos.services.memory_compactor import MemoryCompactor
 from database import Base
 from database_models import DocumentRecord, ProjectRecord
 from services.memory import generate_project_memory_autocomplete, get_memory_context
@@ -79,6 +80,66 @@ async def test_memory_routes_create_update_and_context(db_session: Session):
     context = get_memory_context(refreshed_project, db=db_session)
     assert context["workspace_memory"]["summary"] == "Use the same editorial QA pass across projects."
     assert "Avoid hype language." in context["project_memory"]["pinned_facts"]
+
+
+@pytest.mark.asyncio
+async def test_project_memory_update_compacts_and_exposes_archives(
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    project = ProjectRecord(
+        name="Compaction Project",
+        description="Testing memory compaction.",
+        domains=["web"],
+        story_bible={},
+        brand_bible={},
+    )
+    db_session.add(project)
+    db_session.commit()
+    db_session.refresh(project)
+
+    vector_store = VectorStore(path=str(tmp_path / "vector_store"), collection_name="memory_archives_test")
+    vector_store._use_memory_fallback()
+    monkeypatch.setattr("services.memory.global_memory_compactor", MemoryCompactor(vector_store=vector_store))
+    monkeypatch.setattr("services.memory.settings.MEMORY_COMPACTION_TOKEN_THRESHOLD", 20)
+    monkeypatch.setattr("services.memory.settings.MEMORY_COMPACTION_FACT_RETENTION", 2)
+    monkeypatch.setattr("services.memory.settings.MEMORY_COMPACTION_SUMMARY_KEEP_CHARS", 80)
+
+    response = await routes.update_project_memory_route(
+        project_id=project.id,
+        payload=MemoryUpdateRequest(
+            summary="CellNucleus review workflow " * 30,
+            pinned_facts=[
+                "Archive this checklist fact first.",
+                "Archive this evidence rubric second.",
+                "Keep this recent publishing reminder.",
+                "Keep this final QA reminder.",
+            ],
+        ),
+        db=db_session,
+    )
+
+    assert response.compaction_count == 1
+    assert response.last_compacted_at is not None
+    assert response.summary.endswith("[Older memory archived to semantic search.]")
+    assert response.pinned_facts == [
+        "Keep this recent publishing reminder.",
+        "Keep this final QA reminder.",
+    ]
+
+    archive_response = await routes.search_project_memory_archives_route(
+        project_id=project.id,
+        query="evidence rubric second",
+        limit=5,
+        db=db_session,
+    )
+
+    assert archive_response.scope == "project"
+    assert archive_response.project_id == project.id
+    assert archive_response.results
+    assert "Archive this evidence rubric second." in archive_response.results[0].content
+    assert archive_response.results[0].metadata["scope"] == "project"
 
 
 @pytest.mark.asyncio

@@ -463,6 +463,19 @@ class WorkspaceMemoryResponse(BaseModel):
     updated_at: datetime
 
 
+class MemoryArchiveSearchResultResponse(BaseModel):
+    content: str
+    score: float
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class MemoryArchiveSearchResponse(BaseModel):
+    scope: Literal["workspace", "project"]
+    project_id: Optional[str] = None
+    query: str
+    results: list[MemoryArchiveSearchResultResponse] = Field(default_factory=list)
+
+
 class MemoryAutocompleteResponse(BaseModel):
     scope: Literal["workspace", "project"]
     project_id: Optional[str] = None

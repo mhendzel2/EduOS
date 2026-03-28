@@ -17,11 +17,13 @@ import type {
   ProjectChatMessage,
   ProjectChatResponse,
   ProjectDocumentItem,
+  ProjectInboxStatus,
   ProjectImportResponse,
   ProjectAgentRunResponse,
   PromptFeedback,
   PromptFeedbackListResponse,
   PromptOptimizationResult,
+  ProjectWebsiteImportResponse,
   RunRecord,
   SearchResultItem,
   StoryBible,
@@ -476,6 +478,26 @@ export async function importProjectDocumentsFromPath(
   payload: { source_path: string; mode?: 'copy' | 'reference'; recursive?: boolean }
 ): Promise<ProjectImportResponse> {
   return fetchAPI<ProjectImportResponse>(`/projects/${projectId}/documents/import-path`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getProjectInboxStatus(projectId: string): Promise<ProjectInboxStatus> {
+  return fetchAPI<ProjectInboxStatus>(`/projects/${projectId}/inbox`);
+}
+
+export async function importProjectInbox(projectId: string): Promise<ProjectImportResponse> {
+  return fetchAPI<ProjectImportResponse>(`/projects/${projectId}/inbox/import`, {
+    method: 'POST',
+  });
+}
+
+export async function importProjectWebsite(
+  projectId: string,
+  payload: { site_url: string; max_pages?: number }
+): Promise<ProjectWebsiteImportResponse> {
+  return fetchAPI<ProjectWebsiteImportResponse>(`/projects/${projectId}/documents/import-website`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });

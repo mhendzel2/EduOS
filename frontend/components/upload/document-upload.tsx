@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { ArrowUpTrayIcon, DocumentIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
-import { importProjectDocumentsFromPath, uploadDocument } from '@/lib/api';
+import { getProjectInboxStatus, importProjectDocumentsFromPath, importProjectInbox, importProjectWebsite, uploadDocument } from '@/lib/api';
+import type { ProjectInboxStatus } from '@/lib/types';
 
 interface DocumentUploadProps {
   projectId?: string;
@@ -55,6 +56,14 @@ export default function DocumentUpload({ projectId = 'default', onUploadSuccess,
   const [importMode, setImportMode] = useState<'copy' | 'reference'>('reference');
   const [importingPath, setImportingPath] = useState(false);
   const [importSummary, setImportSummary] = useState('');
+  const [inboxStatus, setInboxStatus] = useState<ProjectInboxStatus | null>(null);
+  const [inboxSummary, setInboxSummary] = useState('');
+  const [loadingInbox, setLoadingInbox] = useState(false);
+  const [importingInbox, setImportingInbox] = useState(false);
+  const [websiteUrl, setWebsiteUrl] = useState('https://cellnucleus.com');
+  const [websiteMaxPages, setWebsiteMaxPages] = useState('25');
+  const [websiteSummary, setWebsiteSummary] = useState('');
+  const [importingWebsite, setImportingWebsite] = useState(false);
   const directoryInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -64,6 +73,22 @@ export default function DocumentUpload({ projectId = 'default', onUploadSuccess,
     directoryInputRef.current.setAttribute('webkitdirectory', '');
     directoryInputRef.current.setAttribute('directory', '');
   }, []);
+
+  const loadInboxStatus = useCallback(async () => {
+    setLoadingInbox(true);
+    try {
+      const status = await getProjectInboxStatus(projectId);
+      setInboxStatus(status);
+    } catch (err) {
+      setInboxSummary(err instanceof Error ? err.message : 'Unable to load inbox status.');
+    } finally {
+      setLoadingInbox(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    void loadInboxStatus();
+  }, [loadInboxStatus]);
 
   const getUploadKey = (file: File): string => `${file.webkitRelativePath || file.name}:${file.size}:${file.lastModified}`;
 
@@ -122,6 +147,7 @@ export default function DocumentUpload({ projectId = 'default', onUploadSuccess,
           )
         );
         onUploadSuccess?.(result.document_id, file.name);
+        void loadInboxStatus();
       } catch (err) {
         setFiles((prev) =>
           prev.map((f) =>
@@ -132,7 +158,7 @@ export default function DocumentUpload({ projectId = 'default', onUploadSuccess,
         );
       }
     }
-  }, [projectId, onUploadSuccess]);
+  }, [loadInboxStatus, projectId, onUploadSuccess]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -178,12 +204,57 @@ export default function DocumentUpload({ projectId = 'default', onUploadSuccess,
         `(${result.mode} mode, skipped ${result.skipped_existing}, indexing failed ${result.indexing_failed}).`
       );
       onImportComplete?.();
+      void loadInboxStatus();
     } catch (err) {
       setImportSummary(err instanceof Error ? err.message : 'Path import failed.');
     } finally {
       setImportingPath(false);
     }
-  }, [importMode, importPath, onImportComplete, projectId]);
+  }, [importMode, importPath, loadInboxStatus, onImportComplete, projectId]);
+
+  const handleInboxImport = useCallback(async () => {
+    setImportingInbox(true);
+    setInboxSummary('');
+    try {
+      const result = await importProjectInbox(projectId);
+      setInboxSummary(
+        `Imported ${result.imported} of ${result.selected_files} inbox files ` +
+        `(skipped ${result.skipped_existing}, indexing failed ${result.indexing_failed}).`
+      );
+      onImportComplete?.();
+      void loadInboxStatus();
+    } catch (err) {
+      setInboxSummary(err instanceof Error ? err.message : 'Inbox import failed.');
+    } finally {
+      setImportingInbox(false);
+    }
+  }, [loadInboxStatus, onImportComplete, projectId]);
+
+  const handleWebsiteImport = useCallback(async () => {
+    const siteUrl = websiteUrl.trim();
+    if (!siteUrl) {
+      setWebsiteSummary('Enter a website URL to import.');
+      return;
+    }
+
+    setImportingWebsite(true);
+    setWebsiteSummary('');
+    try {
+      const result = await importProjectWebsite(projectId, {
+        site_url: siteUrl,
+        max_pages: Number.parseInt(websiteMaxPages, 10) || 25,
+      });
+      setWebsiteSummary(
+        `Imported ${result.imported} of ${result.selected_pages} pages from ${result.normalized_site_url} ` +
+        `(skipped ${result.skipped_existing}, indexing failed ${result.indexing_failed}).`
+      );
+      onImportComplete?.();
+    } catch (err) {
+      setWebsiteSummary(err instanceof Error ? err.message : 'Website import failed.');
+    } finally {
+      setImportingWebsite(false);
+    }
+  }, [onImportComplete, projectId, websiteMaxPages, websiteUrl]);
 
   return (
     <div className="space-y-4">
@@ -201,6 +272,7 @@ export default function DocumentUpload({ projectId = 'default', onUploadSuccess,
           type="file"
           multiple
           accept={ALLOWED_EXTENSIONS.join(',')}
+          title="Upload files to the current project"
           onChange={handleFileInput}
           className="absolute inset-0 cursor-pointer opacity-0"
         />
@@ -218,6 +290,7 @@ export default function DocumentUpload({ projectId = 'default', onUploadSuccess,
           ref={directoryInputRef}
           type="file"
           multiple
+          title="Import a local folder"
           onChange={handleFileInput}
           className="hidden"
         />
@@ -244,6 +317,7 @@ export default function DocumentUpload({ projectId = 'default', onUploadSuccess,
           <select
             value={importMode}
             onChange={(event) => setImportMode(event.target.value as 'copy' | 'reference')}
+            title="Select local path import mode"
             className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
           >
             <option value="reference">Reference Original Files</option>
@@ -267,6 +341,77 @@ export default function DocumentUpload({ projectId = 'default', onUploadSuccess,
           </button>
         </div>
         {importSummary && <p className="mt-3 text-xs text-slate-400">{importSummary}</p>}
+      </div>
+
+      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-slate-200">Project Inbox</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Drop external files into the project inbox folder, then import them into the current project.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void loadInboxStatus()}
+              disabled={loadingInbox}
+              className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-300 transition hover:border-slate-500 hover:text-white disabled:opacity-50"
+            >
+              {loadingInbox ? 'Refreshing…' : 'Refresh Inbox'}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleInboxImport()}
+              disabled={importingInbox}
+              className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-300 transition hover:border-slate-500 hover:text-white disabled:opacity-50"
+            >
+              {importingInbox ? 'Importing…' : 'Import Inbox'}
+            </button>
+          </div>
+        </div>
+        <div className="mt-3 space-y-2 text-xs text-slate-400">
+          <p>Folder: {inboxStatus?.inbox_path || 'Loading…'}</p>
+          <p>Files ready: {inboxStatus?.importable_file_count ?? 0}</p>
+          {inboxStatus && inboxStatus.sample_files.length > 0 && (
+            <p>Recent files: {inboxStatus.sample_files.join(', ')}</p>
+          )}
+        </div>
+        {inboxSummary && <p className="mt-3 text-xs text-slate-400">{inboxSummary}</p>}
+      </div>
+
+      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+        <div>
+          <p className="text-sm font-medium text-slate-200">Import Website</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Crawl a public site sitemap and store each page as a structured project document.
+          </p>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-3">
+          <input
+            value={websiteUrl}
+            onChange={(event) => setWebsiteUrl(event.target.value)}
+            placeholder="https://cellnucleus.com"
+            className="min-w-[18rem] flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white"
+          />
+          <input
+            value={websiteMaxPages}
+            onChange={(event) => setWebsiteMaxPages(event.target.value)}
+            inputMode="numeric"
+            placeholder="25"
+            title="Maximum website pages to import"
+            className="w-28 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white"
+          />
+          <button
+            type="button"
+            onClick={() => void handleWebsiteImport()}
+            disabled={importingWebsite}
+            className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-300 transition hover:border-slate-500 hover:text-white disabled:opacity-50"
+          >
+            {importingWebsite ? 'Importing…' : 'Import Website'}
+          </button>
+        </div>
+        {websiteSummary && <p className="mt-3 text-xs text-slate-400">{websiteSummary}</p>}
       </div>
 
       {files.length > 0 && (

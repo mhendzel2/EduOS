@@ -50,6 +50,7 @@ async def evaluate_gate(
             session_id=project_context.get("project_id", "gate-eval"),
             user_input=artifact_content,
             context=context,
+            turboquant_kv_compression_enabled=bool(project_context.get("turboquant_kv_compression_enabled")),
         )
     )
 

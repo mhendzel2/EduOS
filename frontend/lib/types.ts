@@ -189,6 +189,23 @@ export interface ProjectImportResponse {
   indexing_failed: number;
 }
 
+export interface ProjectInboxStatus {
+  project_id: string;
+  inbox_path: string;
+  exists: boolean;
+  importable_file_count: number;
+  sample_files: string[];
+}
+
+export interface ProjectWebsiteImportResponse {
+  project_id: string;
+  normalized_site_url: string;
+  selected_pages: number;
+  imported: number;
+  skipped_existing: number;
+  indexing_failed: number;
+}
+
 export interface MediaToolSettingsItem {
   tool_id: string;
   name: string;

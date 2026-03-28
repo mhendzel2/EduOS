@@ -33,6 +33,8 @@ from api.schemas import (
     MediaToolActionResponse,
     MemoryAutocompleteRequest,
     MemoryAutocompleteResponse,
+    MemoryArchiveSearchResponse,
+    MemoryArchiveSearchResultResponse,
     MemoryUpdateRequest,
     MediaToolSettingsResponseItem,
     OllamaBootstrapRequest,
@@ -45,12 +47,15 @@ from api.schemas import (
     ProjectChatResponse,
     ProjectDocumentResponse,
     ProjectDocumentsResponse,
+    ProjectInboxStatusResponse,
     ProjectImportRequest,
     ProjectImportResponse,
     ProjectAgentRunResponse,
     ProjectMediaToolSettingsResponse,
     ProjectMediaToolSettingsUpdateRequest,
     ProjectMemoryResponse,
+    ProjectWebsiteImportRequest,
+    ProjectWebsiteImportResponse,
     PromptFeedbackCreate,
     PromptFeedbackListResponse,
     PromptFeedbackResponse,
@@ -84,7 +89,7 @@ from models.model_client import (
     model_supports_vision,
 )
 from models.router import ModelTier
-from config import settings
+from config import ROOT_DIR, settings
 from database import SessionLocal, get_db
 from database_models import (
     ArtifactRecord,
@@ -100,11 +105,13 @@ from services.brand_presets import get_brand_preset, list_brand_presets, seed_br
 from services.document_indexing import build_vector_documents_for_file, build_vector_documents_for_structured_document
 from services.google_oauth import get_google_oauth_client_status
 from services.memory import (
+    get_memory_contracts,
     generate_project_memory_autocomplete,
     generate_workspace_memory_autocomplete,
     get_memory_context,
     get_or_create_project_memory,
     get_or_create_workspace_memory,
+    search_memory_archives,
     serialize_project_memory,
     serialize_workspace_memory,
     update_bibles_from_artifact,
@@ -164,6 +171,7 @@ from services.telegram_control import (
     TelegramProjectRef,
     parse_allowed_chat_ids,
 )
+from services.website_import import fetch_site_pages
 from services.workflow_command import plan_project_workflow_command
 from storage.document_store import DocumentStore
 from storage.vector_store import VectorStore
@@ -319,14 +327,137 @@ def _normalize_local_source_path(raw_path: str) -> Path:
     if not candidate:
         raise ValueError("Source path is required.")
 
-    normalized = candidate.replace("\\", "/")
-    drive_match = re.match(r"^([a-zA-Z]):/(.*)$", normalized)
-    if drive_match:
-        drive = drive_match.group(1).lower()
-        remainder = drive_match.group(2).lstrip("/")
-        normalized = f"/mnt/{drive}/{remainder}"
+    return Path(candidate).expanduser().resolve()
 
-    return Path(normalized).expanduser().resolve()
+
+def _project_slug(value: str) -> str:
+    slug = re.sub(r"[^a-zA-Z0-9_-]+", "-", (value or "").strip()).strip("-").lower()
+    return slug or "project"
+
+
+def _get_project_inbox_path(project: ProjectRecord) -> Path:
+    return (ROOT_DIR / "project_inbox" / f"{_project_slug(project.name)}-{project.id[:8]}").resolve()
+
+
+async def _create_structured_project_document(
+    *,
+    project: ProjectRecord,
+    payload: StructuredDocumentCreateRequest,
+    db: Session,
+) -> tuple[DocumentRecord, bool]:
+    existing = None
+    if payload.source_url:
+        existing = (
+            db.query(DocumentProvenanceRecord)
+            .join(DocumentRecord, DocumentRecord.id == DocumentProvenanceRecord.document_id)
+            .filter(
+                DocumentRecord.project_id == project.id,
+                DocumentProvenanceRecord.source_url == payload.source_url,
+            )
+            .first()
+        )
+    if existing is not None:
+        document = db.query(DocumentRecord).filter(DocumentRecord.id == existing.document_id).first()
+        if document is not None:
+            return document, False
+
+    document_store = get_document_store_service()
+    vector_store = get_vector_store_service()
+    safe_stem = re.sub(r"[^a-zA-Z0-9_-]+", "-", payload.title.strip()).strip("-").lower() or "structured-document"
+    filename = payload.filename or f"{safe_stem}.json"
+    canonical_payload = {
+        "title": payload.title,
+        "abstract": payload.abstract,
+        "content": payload.content,
+        "source_type": payload.source_type,
+        "source_identifier": payload.source_identifier,
+        "source_url": payload.source_url,
+        "citation": payload.citation,
+        "authors": payload.authors,
+        "published_at": payload.published_at,
+        "metadata": payload.metadata,
+    }
+    file_content = json.dumps(canonical_payload, indent=2, ensure_ascii=True).encode("utf-8")
+
+    file_info = await document_store.save_file(
+        file_content=file_content,
+        filename=filename,
+        project_id=project.id,
+        content_type="application/json",
+    )
+
+    try:
+        document = DocumentRecord(
+            id=file_info.id,
+            project_id=project.id,
+            filename=file_info.filename,
+            path=file_info.path,
+            size=file_info.size,
+            content_type=file_info.content_type,
+            source_path=payload.source_url or None,
+            is_reference=True,
+            version=1,
+        )
+        db.add(document)
+        db.commit()
+        db.refresh(document)
+
+        provenance = DocumentProvenanceRecord(
+            document_id=document.id,
+            source_type=payload.source_type,
+            source_identifier=payload.source_identifier,
+            source_url=payload.source_url,
+            citation=payload.citation,
+            authors=list(payload.authors or []),
+            published_at=payload.published_at,
+            metadata_=payload.metadata or {},
+        )
+        db.add(provenance)
+        db.commit()
+        db.refresh(document)
+
+        vector_documents = build_vector_documents_for_structured_document(
+            canonical_payload,
+            document_id=document.id,
+            base_metadata={
+                "project_id": project.id,
+                "filename": document.filename,
+                "content_type": document.content_type,
+                "source_path": document.source_path or "",
+            },
+        )
+        await vector_store.add_documents(vector_documents)
+    except Exception:
+        db.rollback()
+        existing_provenance = (
+            db.query(DocumentProvenanceRecord)
+            .filter(DocumentProvenanceRecord.document_id == file_info.id)
+            .first()
+        )
+        if existing_provenance is not None:
+            db.delete(existing_provenance)
+            db.commit()
+        existing_document = db.query(DocumentRecord).filter(DocumentRecord.id == file_info.id).first()
+        if existing_document is not None:
+            db.delete(existing_document)
+            db.commit()
+        await document_store.delete_file(file_info.path)
+        raise
+
+    return document, True
+
+
+def _build_project_inbox_status(project: ProjectRecord) -> ProjectInboxStatusResponse:
+    inbox_path = _get_project_inbox_path(project)
+    files = _iter_import_files(inbox_path, recursive=True) if inbox_path.exists() else []
+    sample_files = [str(path.relative_to(inbox_path)) for path in files[:5]]
+    return ProjectInboxStatusResponse(
+        project_id=project.id,
+        inbox_path=str(inbox_path),
+        exists=inbox_path.exists(),
+        importable_file_count=len(files),
+        sample_files=sample_files,
+    )
 
 
 def _iter_import_files(source_path: Path, recursive: bool) -> list[Path]:
@@ -656,6 +787,7 @@ async def _execute_project_agent_run(
     agent_context = _build_project_agent_context(project, db=db, request_context=request.context)
     agent_context.setdefault("agent_slug", f"{workforce}.{agent_id}")
     agent_context.setdefault("requested_agent", f"{workforce}.{agent_id}")
+    workspace_memory_contract, project_memory_contract = get_memory_contracts(project, db=db)
 
     try:
         response = await agent.process(
@@ -663,6 +795,12 @@ async def _execute_project_agent_run(
                 session_id=run.id,
                 user_input=request.user_input,
                 context=agent_context,
+                project_memory=request.project_memory or project_memory_contract,
+                workspace_memory=request.workspace_memory or workspace_memory_contract,
+                model=request.model,
+                temperature=request.temperature,
+                max_tokens=request.max_tokens,
+                turboquant_kv_compression_enabled=request.turboquant_kv_compression_enabled,
             )
         )
         append_run_event(
@@ -1401,11 +1539,31 @@ async def get_workspace_memory_route(db: Session = Depends(get_db)):
 @router.put("/memory/global")
 async def update_workspace_memory_route(payload: MemoryUpdateRequest, db: Session = Depends(get_db)):
     memory = get_or_create_workspace_memory(db)
-    update_memory_record(memory, summary=payload.summary, pinned_facts=payload.pinned_facts)
+    await update_memory_record(memory, summary=payload.summary, pinned_facts=payload.pinned_facts)
     db.add(memory)
     db.commit()
     db.refresh(memory)
     return WorkspaceMemoryResponse(**serialize_workspace_memory(memory))
+
+
+@router.get("/memory/global/archives/search")
+async def search_workspace_memory_archives_route(
+    query: str,
+    limit: int = 3,
+    db: Session = Depends(get_db),
+):
+    memory = get_or_create_workspace_memory(db)
+    results = await search_memory_archives(
+        scope="workspace",
+        scope_id=memory.id,
+        query=query,
+        limit=min(max(limit, 1), 20),
+    )
+    return MemoryArchiveSearchResponse(
+        scope="workspace",
+        query=query,
+        results=[MemoryArchiveSearchResultResponse(**result) for result in results],
+    )
 
 
 @router.post("/memory/global/autocomplete")
@@ -1492,11 +1650,33 @@ async def update_project_memory_route(
 ):
     _get_project(db, project_id)
     memory = get_or_create_project_memory(db, project_id)
-    update_memory_record(memory, summary=payload.summary, pinned_facts=payload.pinned_facts)
+    await update_memory_record(memory, summary=payload.summary, pinned_facts=payload.pinned_facts)
     db.add(memory)
     db.commit()
     db.refresh(memory)
     return ProjectMemoryResponse(**serialize_project_memory(memory))
+
+
+@router.get("/projects/{project_id}/memory/archives/search")
+async def search_project_memory_archives_route(
+    project_id: str,
+    query: str,
+    limit: int = 3,
+    db: Session = Depends(get_db),
+):
+    _get_project(db, project_id)
+    results = await search_memory_archives(
+        scope="project",
+        scope_id=project_id,
+        query=query,
+        limit=min(max(limit, 1), 20),
+    )
+    return MemoryArchiveSearchResponse(
+        scope="project",
+        project_id=project_id,
+        query=query,
+        results=[MemoryArchiveSearchResultResponse(**result) for result in results],
+    )
 
 
 @router.post("/projects/{project_id}/memory/autocomplete")
@@ -1949,88 +2129,9 @@ async def upload_project_structured_document(
     db: Session = Depends(get_db),
 ):
     project = _get_project(db, project_id)
-    document_store = get_document_store_service()
-    vector_store = get_vector_store_service()
-
-    safe_stem = re.sub(r"[^a-zA-Z0-9_-]+", "-", payload.title.strip()).strip("-").lower() or "structured-document"
-    filename = payload.filename or f"{safe_stem}.json"
-    canonical_payload = {
-        "title": payload.title,
-        "abstract": payload.abstract,
-        "content": payload.content,
-        "source_type": payload.source_type,
-        "source_identifier": payload.source_identifier,
-        "source_url": payload.source_url,
-        "citation": payload.citation,
-        "authors": payload.authors,
-        "published_at": payload.published_at,
-        "metadata": payload.metadata,
-    }
-    file_content = json.dumps(canonical_payload, indent=2, ensure_ascii=True).encode("utf-8")
-
-    file_info = await document_store.save_file(
-        file_content=file_content,
-        filename=filename,
-        project_id=project.id,
-        content_type="application/json",
-    )
-
     try:
-        document = DocumentRecord(
-            id=file_info.id,
-            project_id=project.id,
-            filename=file_info.filename,
-            path=file_info.path,
-            size=file_info.size,
-            content_type=file_info.content_type,
-            source_path=payload.source_url or None,
-            is_reference=True,
-            version=1,
-        )
-        db.add(document)
-        db.commit()
-        db.refresh(document)
-
-        provenance = DocumentProvenanceRecord(
-            document_id=document.id,
-            source_type=payload.source_type,
-            source_identifier=payload.source_identifier,
-            source_url=payload.source_url,
-            citation=payload.citation,
-            authors=list(payload.authors or []),
-            published_at=payload.published_at,
-            metadata_=payload.metadata or {},
-        )
-        db.add(provenance)
-        db.commit()
-        db.refresh(document)
-
-        vector_documents = build_vector_documents_for_structured_document(
-            canonical_payload,
-            document_id=document.id,
-            base_metadata={
-                "project_id": project.id,
-                "filename": document.filename,
-                "content_type": document.content_type,
-                "source_path": document.source_path or "",
-            },
-        )
-        await vector_store.add_documents(vector_documents)
+        document, _ = await _create_structured_project_document(project=project, payload=payload, db=db)
     except Exception as exc:
-        db.rollback()
-        existing_provenance = (
-            db.query(DocumentProvenanceRecord)
-            .filter(DocumentProvenanceRecord.document_id == file_info.id)
-            .first()
-        )
-        if existing_provenance is not None:
-            db.delete(existing_provenance)
-            db.commit()
-        existing_document = db.query(DocumentRecord).filter(DocumentRecord.id == file_info.id).first()
-        if existing_document is not None:
-            db.delete(existing_document)
-            db.commit()
-        await document_store.delete_file(file_info.path)
         raise HTTPException(status_code=500, detail=f"Structured document upload failed during indexing: {exc}") from exc
 
     return ProjectDocumentResponse(**_serialize_document(document))
@@ -2151,6 +2252,89 @@ async def import_project_documents_from_path(
         normalized_source_path=str(source_path),
         mode=payload.mode,
         selected_files=len(files),
+        imported=imported,
+        skipped_existing=skipped_existing,
+        indexing_failed=indexing_failed,
+    )
+
+
+@router.get("/projects/{project_id}/inbox")
+async def get_project_inbox_status(project_id: str, db: Session = Depends(get_db)):
+    project = _get_project(db, project_id)
+    return _build_project_inbox_status(project)
+
+
+@router.post("/projects/{project_id}/inbox/import")
+async def import_project_inbox(project_id: str, db: Session = Depends(get_db)):
+    project = _get_project(db, project_id)
+    inbox_path = _get_project_inbox_path(project)
+    if not inbox_path.exists():
+        inbox_path.mkdir(parents=True, exist_ok=True)
+        return ProjectImportResponse(
+            project_id=project.id,
+            normalized_source_path=str(inbox_path),
+            mode="copy",
+            selected_files=0,
+            imported=0,
+            skipped_existing=0,
+            indexing_failed=0,
+        )
+
+    return await import_project_documents_from_path(
+        project_id=project_id,
+        payload=ProjectImportRequest(source_path=str(inbox_path), recursive=True, mode="copy"),
+        db=db,
+    )
+
+
+@router.post("/projects/{project_id}/documents/import-website")
+async def import_project_website_documents(
+    project_id: str,
+    payload: ProjectWebsiteImportRequest,
+    db: Session = Depends(get_db),
+):
+    project = _get_project(db, project_id)
+    try:
+        website_result = await fetch_site_pages(payload.site_url, max_pages=payload.max_pages)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Website import failed: {exc}") from exc
+
+    imported = 0
+    skipped_existing = 0
+    indexing_failed = 0
+
+    for page in website_result["pages"]:
+        try:
+            _, created = await _create_structured_project_document(
+                project=project,
+                payload=StructuredDocumentCreateRequest(
+                    title=page["title"],
+                    abstract=page.get("abstract") or "",
+                    content=page["content"],
+                    source_type=page.get("source_type") or "website_page",
+                    source_identifier=page.get("source_identifier") or page.get("source_url") or "",
+                    source_url=page.get("source_url") or "",
+                    citation=page.get("citation") or page.get("source_url") or "",
+                    authors=list(page.get("authors") or []),
+                    published_at=page.get("published_at") or "",
+                    metadata=dict(page.get("metadata") or {}),
+                ),
+                db=db,
+            )
+        except Exception:
+            indexing_failed += 1
+            continue
+        if created:
+            imported += 1
+        else:
+            skipped_existing += 1
+
+    return ProjectWebsiteImportResponse(
+        project_id=project.id,
+        normalized_site_url=website_result["normalized_site_url"],
+        selected_pages=website_result["selected_pages"],
         imported=imported,
         skipped_existing=skipped_existing,
         indexing_failed=indexing_failed,

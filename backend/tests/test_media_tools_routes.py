@@ -67,7 +67,11 @@ async def test_media_tool_routes_seed_defaults_and_persist_updates(db_session: S
                 MediaToolSettingsUpdateItem(
                     tool_id="composio_youtube_mcp",
                     enabled=True,
-                    config={"channel_reference": "CellNucleus", "local_upload_path": "/tmp/output.mp4"},
+                    config={
+                        "channel_reference": "CellNucleus",
+                        "youtube_api_key": "cellnucleus-key",
+                        "local_upload_path": "/tmp/output.mp4",
+                    },
                 ),
                 MediaToolSettingsUpdateItem(
                     tool_id="ffmpeg_execute_code",
@@ -85,6 +89,7 @@ async def test_media_tool_routes_seed_defaults_and_persist_updates(db_session: S
 
     assert composio.enabled is True
     assert composio.config["channel_reference"] == "CellNucleus"
+    assert composio.config["youtube_api_key"] == "cellnucleus-key"
     assert ffmpeg.enabled is True
     assert ffmpeg.config["branding_asset_path"] == "/tmp/logo.png"
     assert notebooklm.enabled is False
@@ -147,16 +152,21 @@ async def test_execute_youtube_comment_collector_persists_feedback_artifact(
                 MediaToolSettingsUpdateItem(
                     tool_id="youtube_comment_collector",
                     enabled=True,
-                    config={"video_reference": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "max_results": 5},
+                    config={
+                        "video_reference": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                        "max_results": 5,
+                        "youtube_api_key": "project-level-youtube-key",
+                    },
                 )
             ]
         ),
         db=db_session,
     )
 
-    async def fake_fetch_youtube_comment_feedback(video_reference: str, *, max_results: int):
+    async def fake_fetch_youtube_comment_feedback(video_reference: str, *, api_key: str | None = None, max_results: int):
         assert "youtube.com" in video_reference
         assert max_results == 5
+        assert api_key == "project-level-youtube-key"
         return {
             "video_id": "dQw4w9WgXcQ",
             "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
@@ -208,6 +218,7 @@ async def test_execute_youtube_comment_collector_persists_feedback_artifact(
     assert response.artifact.artifact_type == "youtube_comment_feedback"
     assert response.metadata["video_id"] == "dQw4w9WgXcQ"
     assert response.metadata["comment_count"] == 1
+    assert response.metadata["uses_project_api_key"] is True
     assert {asset.kind for asset in response.generated_media_assets} == {"json"}
 
 

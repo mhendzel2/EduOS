@@ -939,12 +939,18 @@ async def execute_media_tool_action(
         if not video_reference:
             raise ValueError("A YouTube video reference is required to collect comment feedback.")
 
+        project_api_key = _trimmed_string(tool.get("config", {}).get("youtube_api_key"))
+
         configured_default = _coerce_int(
             tool.get("config", {}).get("max_results"),
             settings.YOUTUBE_COMMENTS_DEFAULT_MAX_RESULTS,
         )
         max_results = max(1, min(_coerce_int(arguments.get("max_results"), configured_default), 100))
-        payload = await fetch_youtube_comment_feedback(video_reference, max_results=max_results)
+        payload = await fetch_youtube_comment_feedback(
+            video_reference,
+            api_key=project_api_key or None,
+            max_results=max_results,
+        )
         artifact = _persist_json_artifact(
             project=project,
             db=db,
@@ -955,6 +961,7 @@ async def execute_media_tool_action(
                 "action": action,
                 "video_id": payload["video_id"],
                 "comment_count": payload["summary"]["comment_count"],
+                "uses_project_api_key": bool(project_api_key),
             },
         )
         return _build_result(
@@ -968,6 +975,7 @@ async def execute_media_tool_action(
                 "video_url": payload["video_url"],
                 "comment_count": payload["summary"]["comment_count"],
                 "unique_author_count": payload["summary"]["unique_author_count"],
+                "uses_project_api_key": bool(project_api_key),
             },
             generated_assets=[_generated_artifact("youtube_comment_feedback", artifact)],
         )
