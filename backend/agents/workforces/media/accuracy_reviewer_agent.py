@@ -39,3 +39,20 @@ class AccuracyReviewerAgent(BaseAgent):
             ),
             temperature=0.2,
         )
+
+    async def process(self, request):
+        if "retrieved_passages" in request.context:
+            passages = request.context.pop("retrieved_passages")
+            passages_block = "## Retrieved Passages (Base Grounding)\n" + "\n\n".join(
+                [str(p.get("content") if isinstance(p, dict) else p) for p in passages[:15]]
+            )
+            
+            original_prompt = self.system_prompt
+            self.system_prompt = f"{original_prompt}\n\n{passages_block}\n\nCRITICAL RULE: If a claim is not supported by these exact passages, fail it to prevent hallucination."
+            
+            try:
+                return await super().process(request)
+            finally:
+                self.system_prompt = original_prompt
+                
+        return await super().process(request)
