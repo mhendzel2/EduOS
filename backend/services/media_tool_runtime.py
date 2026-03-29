@@ -140,7 +140,8 @@ def _coerce_float(value: Any, default: float | None = None) -> float | None:
 
 
 def _ffmpeg_drawtext_filter(text: str) -> str:
-    escaped = text.replace("\\", "\\\\").replace(":", r"\:").replace("'", r"\'")
+    # D1: Full libav/FFmpeg double-escaping to prevent filter injection.
+    escaped = text.replace("\\", "\\\\\\\\").replace("'", "\\\\\\'").replace(":", "\\\\:").replace("%", "\\\\%")
     return (
         "drawtext="
         f"text='{escaped}':"

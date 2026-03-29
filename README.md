@@ -1,196 +1,228 @@
 # EduOS
 
-EduOS is a review-first educational studio for turning source material into evidence-aware website and YouTube outputs. The current build combines a Next.js frontend, a FastAPI backend, project-scoped artifacts and memory, configurable model routing, and workflow-driven writing, media, promo, and review workforces.
+> **Evidence-aware science publishing studio for CellNucleus — rigorous AI-assisted educational content for advanced biology.**
 
-The primary brand target in this repo is **CellNucleus**:
+EduOS is the production platform for [CellNucleus](https://www.cellnucleus.com), a science communication channel and website dedicated to evidence-aware biology content. It is explicitly designed as an experiment in whether AI can contribute meaningfully to scientific review — producing content with the depth and rigour of formal review articles while being openly accessible, uncertainty-transparent, and continuously updatable.
 
-- website: `https://www.cellnucleus.com`
-- channel: `CellNucleus`
-- output style: rigorous, uncertainty-aware educational publishing for advanced biology learners
+EduOS is not a generic content studio. Every output goes through a structured review pipeline that separates established facts from hypotheses, preserves uncertainty rather than flattening it, and maintains evidence provenance from source material through to published content.
 
-## Product Focus
+---
 
-EduOS is not meant to be a generic creative studio. The intended workflow is:
+## Mission
 
-1. define a scientific question or hypothesis worth teaching
-2. collect source material and preserve provenance
-3. run structured review passes with explicit evidence standards
-4. synthesize the result into a canonical educational review
-5. package that review for web publication, YouTube production, and downstream NotebookLM handoff
+CellNucleus publishes rigorous, uncertainty-aware science content for advanced biology learners. The editorial standard is:
 
-The current review direction emphasizes:
+- **Separate established facts from hypotheses and open questions** — never present contested claims as settled
+- **Preserve uncertainty** — scripts acknowledge what is unknown, not just what is known
+- **Maintain provenance** — source material is indexed and linked throughout the review pipeline
+- **Reduce author bias** — AI-assisted synthesis integrates the broader literature without the perspective distortions of a single research program
+- **Stay current** — living reviews updated as the field evolves, not static snapshots
 
-- separating established facts from hypotheses, caveats, and open questions
-- preserving uncertainty in scripts instead of flattening it into false certainty
-- storing reusable review artifacts, prompt templates, memory, and run history
-- passing media work through review gates such as `accuracy_reviewer`
+The long-term goal is to displace paywalled, author-biased review articles with openly accessible, AI-transparent, living scientific reviews — starting with cell nucleus and chromatin biology and expanding from there.
+
+---
+
+## CellNucleus Brand
+
+| Property | Value |
+|---|---|
+| Website | `https://www.cellnucleus.com` |
+| YouTube channel | CellNucleus |
+| Output style | Rigorous, uncertainty-aware educational publishing |
+| Target audience | Advanced biology learners, researchers, graduate students |
+| Source path | `C:/Users/mjhen/Github/cellnucleus.com` |
+
+---
+
+## Workflow
+
+1. Define a scientific question or hypothesis worth reviewing
+2. Collect source material and preserve provenance via document upload or folder import
+3. Run structured review passes with explicit evidence standards
+4. Synthesize the result into a canonical educational review artifact
+5. Package for web publication, YouTube production, and NotebookLM handoff
+
+---
 
 ## Current Capabilities
 
-- project management with validated `writing`, `web`, and `youtube` domains
-- document upload, folder import, artifact storage, and semantic document search
-- project chat plus workflow-command planning and execution
-- story bible, brand bible, project memory, and workspace memory surfaces
-- pipeline builder and workforce execution across writing, media, promo, coordination, and review modules
-- model routing and catalog refresh for OpenRouter, Google/Gemini, Ollama, OpenAI, and Anthropic
-- media tools, render jobs, Google OAuth runtime status, Ollama bootstrap, and Telegram control surfaces
+- Project management with validated `writing`, `web`, and `youtube` domains
+- Document upload, folder import, artifact storage, and semantic document search
+- Project chat plus workflow-command planning and execution
+- Story bible, brand bible, project memory, and workspace memory surfaces
+- Pipeline builder and workforce execution across writing, media, promo, coordination, and review modules
+- Model routing and catalog refresh for OpenRouter, Google/Gemini, Ollama, OpenAI, and Anthropic
+- Media tools, render jobs, Google OAuth runtime status, Ollama bootstrap, and Telegram control surfaces
+- Accuracy review gate (`accuracy_reviewer`) mandatory for all media outputs
+
+---
+
+## Workforce Architecture
+
+EduOS shares the same workforce architecture as StudioOS but is configured for science communication:
+
+| Workforce | Science-specific role |
+|---|---|
+| **Writing** | Drafts evidence-anchored review sections and educational scripts |
+| **Review** | Accuracy reviewer, audience reviewer, council — all gate on evidence standards |
+| **Media** | Adapts reviewed content into YouTube scripts, shorts, and web articles |
+| **Promo** | Schedules content releases and extracts audience-appropriate hooks |
+| **Coordination** | Director sequences workforces and manages review dependencies |
+
+---
 
 ## Repository Layout
 
-- `frontend/`: Next.js 15 App Router UI
-- `backend/`: FastAPI API, agents, workflows, persistence, and tests
-- `scripts/`: local development helpers for backend, frontend, Redis, and stack checks
+```
+EduOS/
+├── backend/
+│   ├── main.py                   FastAPI app
+│   ├── config.py                 Settings (Pydantic BaseSettings)
+│   ├── database.py               SQLAlchemy engine
+│   ├── database_models.py        ORM models
+│   ├── agents/
+│   │   ├── base_agent.py
+│   │   ├── registry.py
+│   │   └── workforces/           writing, review, media, promo, coordination
+│   ├── workflows/
+│   │   ├── pipeline.py           StudioPipeline — step execution with gate checks
+│   │   ├── planner.py            StudioPlan builder
+│   │   ├── gate.py               Gate evaluation (accuracy_reviewer is mandatory)
+│   │   ├── governance.py         Governance rules
+│   │   ├── artifact_contracts.py Typed artifact schemas
+│   │   └── state.py              SharedState — cross-step context
+│   └── services/
+│       ├── memory.py             Project and workspace memory
+│       ├── model_catalog.py      Model routing
+│       ├── media_tools.py        Media tool context
+│       ├── document_indexing.py  Source document ingestion and semantic search
+│       ├── render_jobs.py        Background render queue
+│       ├── youtube_feedback.py   YouTube analytics feedback loop
+│       ├── prompt_library.py     Reusable evidence-standard prompt templates
+│       └── telegram_control.py  Telegram remote control
+├── frontend/
+│   └── app/
+│       ├── workspace/            Project workspace and chat
+│       ├── writing-studio/       Draft creation interface
+│       ├── media-studio/         Script and video production
+│       ├── promo-studio/         Campaign planning
+│       ├── story-bible/          Scientific framework and world reference
+│       ├── brand-bible/          CellNucleus brand identity
+│       ├── pipeline/             Workflow pipeline builder
+│       ├── memory/               Project memory surfaces
+│       ├── prompt-library/       Prompt template library
+│       └── provenance/           Artifact and run history
+└── scripts/                      Dev helper scripts (backend, frontend, Redis, stack check)
+```
+
+---
 
 ## Default Local Ports
 
-- frontend: `http://127.0.0.1:3090`
-- backend: `http://127.0.0.1:8090`
-- backend health: `http://127.0.0.1:8090/api/v1/health`
-- Redis: `redis://127.0.0.1:6379/0`
-- Ollama: `http://127.0.0.1:11434`
+| Service | URL |
+|---|---|
+| Frontend | `http://127.0.0.1:3090` |
+| Backend | `http://127.0.0.1:8090` |
+| Backend health | `http://127.0.0.1:8090/api/v1/health` |
+| Redis | `redis://127.0.0.1:6379/0` |
+| Ollama | `http://127.0.0.1:11434` |
+
+---
 
 ## Prerequisites
 
 - Python 3 with `venv`
 - Node.js with `npm`
-- at least one configured LLM provider key in `.env`
-- Redis if you want to use the supplied local stack-check script
-- Ollama if you want local autofill and local workflow routing
+- At least one configured LLM provider key in `.env`
+- Redis (optional — for stack-check script parity)
+- Ollama (optional — for local autofill and local workflow routing)
+
+---
 
 ## Environment Setup
 
 1. Copy `.env.example` to `.env` at the repository root.
-2. Set at least one provider key such as `OPENROUTER_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY`.
-3. Keep `NEXT_PUBLIC_API_URL=http://127.0.0.1:8090` unless you are targeting a different backend.
-4. If you want Google OAuth features, place your OAuth client JSON at the repo root as `google-oauth-client.json`, or point `GOOGLE_OAUTH_CLIENT_FILE` at another path.
-5. Use `backend/.env` only for backend-specific overrides. The root `.env` is the shared source of truth for local development scripts and the frontend API target.
+2. Set at least one provider key: `OPENROUTER_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY`.
+3. Keep `NEXT_PUBLIC_API_URL=http://127.0.0.1:8090` unless targeting a different backend.
+4. For Google OAuth features, place your OAuth client JSON at the repo root as `google-oauth-client.json`, or set `GOOGLE_OAUTH_CLIENT_FILE`.
 
-Important environment variables:
+Key environment variables:
 
-- `NEXT_PUBLIC_API_URL`: frontend target for the backend API
-- `PROVIDER_PRIORITY` and `DEFAULT_MODEL`: top-level routing defaults
-- `LOCAL_AUTOFILL_MODEL` and `LOCAL_WORKFLOW_MODEL`: local Ollama-backed behavior
-- `GOOGLE_OAUTH_CLIENT_FILE`: Google OAuth client JSON path
-- `CELLNUCLEUS_SITE_PATH`: persistent local path for the CellNucleus website workspace
-- `AGENT0_WORKDIR`: base directory for the remaining Agent0 project imports
-- `TELEGRAM_BOT_TOKEN` and `TELEGRAM_POLLING_ENABLED`: optional Telegram remote control
+| Variable | Purpose |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | Frontend target for the backend API |
+| `PROVIDER_PRIORITY` | LLM provider resolution order |
+| `DEFAULT_MODEL` | Default model for routing |
+| `LOCAL_AUTOFILL_MODEL` | Ollama model for local autofill |
+| `LOCAL_WORKFLOW_MODEL` | Ollama model for local workflow steps |
+| `GOOGLE_OAUTH_CLIENT_FILE` | Path to Google OAuth client JSON |
+| `CELLNUCLEUS_SITE_PATH` | Local path for the CellNucleus website workspace |
+| `AGENT0_WORKDIR` | Base directory for Agent0 project imports |
+| `TELEGRAM_BOT_TOKEN` | Optional Telegram remote control |
+| `TELEGRAM_POLLING_ENABLED` | Enable Telegram polling |
 
-## Content Sources
+---
 
-- CellNucleus website source stays at `C:/Users/mjhen/Github/cellnucleus.com`
-- Agent0-backed imports still use `C:/Users/mjhen/Github/Agent0/agent-zero/usr/workdir` by default
-- The Agent0 import helper now treats CellNucleus as a fixed local website workspace while leaving the other Agent0 imports intact
+## Installation
 
-## Install Dependencies
-
-### Windows PowerShell
-
-Create the virtual environment and install backend dependencies:
+### Windows (PowerShell)
 
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r .\backend\requirements.txt
+cd .\frontend && npm install
 ```
 
-Install frontend dependencies:
-
-```powershell
-cd .\frontend
-npm install
-```
-
-### Unix Shell
-
-Create the virtual environment and install backend dependencies:
+### Unix
 
 ```bash
 python3 -m venv .venv
 ./.venv/bin/python -m pip install -r ./backend/requirements.txt
+cd frontend && npm install
 ```
 
-Install frontend dependencies:
+---
 
-```bash
-cd frontend
-npm install
-```
+## Running
 
-## Run Locally
-
-The helper scripts load the repository root `.env` automatically.
-
-### Windows PowerShell
-
-Start the backend:
+### Windows
 
 ```powershell
+# Backend
 powershell -ExecutionPolicy Bypass -File .\scripts\dev_backend.ps1
-```
 
-Start the frontend:
-
-```powershell
+# Frontend
 powershell -ExecutionPolicy Bypass -File .\scripts\dev_frontend.ps1
-```
 
-Start both in separate PowerShell windows:
-
-```powershell
+# Both
 powershell -ExecutionPolicy Bypass -File .\scripts\dev_stack.ps1
 ```
 
-Verify the local stack:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\check_local_stack.ps1
-```
-
-### Unix Shell
-
-Start Redis if you want the full local stack and stack-check parity:
-
-```bash
-./scripts/dev_redis.sh
-```
-
-Start the backend:
+### Unix
 
 ```bash
 ./scripts/dev_backend.sh
-```
-
-Start the frontend:
-
-```bash
 ./scripts/dev_frontend.sh
 ```
 
-Verify the local stack:
-
-```bash
-./scripts/check_local_stack.sh
-```
+---
 
 ## Testing
-
-Backend test coverage currently includes config, routing, document flows, memory, model routing, pipeline builder, workflow commands, render jobs, Google OAuth runtime, Telegram control, and YouTube feedback.
-
-Run backend tests from `backend/`:
 
 ```bash
 cd backend
 ../.venv/bin/pytest tests
 ```
 
-Run a frontend production build from `frontend/`:
-
 ```bash
 cd frontend
 npm run build
 ```
 
+---
+
 ## Notes
 
-- The frontend redirects `/` to `/workspace`.
-- The UI currently exposes Workspace, Projects, Writing Studio, Media Studio, Promo Studio, Story Bible, Brand Bible, Memory, Prompt Library, Pipeline Builder, Run History, Workforces, and Settings.
-- Some UI copy and internal module names still reference `StudioOS` or `ResearchAgent` while the repo is being migrated to EduOS naming.
+- Frontend redirects `/` to `/workspace`.
+- The `accuracy_reviewer` gate is mandatory for all media outputs — content that fails the accuracy gate is blocked from advancing to production.
+- ResearchAgent integration: research synthesis outputs from ResearchAgent can be imported directly as EduOS project source material, creating a pipeline from lab findings to CellNucleus content.
