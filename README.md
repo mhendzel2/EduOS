@@ -1,228 +1,144 @@
 # EduOS
 
-> **Evidence-aware science publishing studio for CellNucleus — rigorous AI-assisted educational content for advanced biology.**
+> Multi-agent science publishing studio for evidence-grounded educational content on cell biology.
 
-EduOS is the production platform for [CellNucleus](https://www.cellnucleus.com), a science communication channel and website dedicated to evidence-aware biology content. It is explicitly designed as an experiment in whether AI can contribute meaningfully to scientific review — producing content with the depth and rigour of formal review articles while being openly accessible, uncertainty-transparent, and continuously updatable.
+## Overview
 
-EduOS is not a generic content studio. Every output goes through a structured review pipeline that separates established facts from hypotheses, preserves uncertainty rather than flattening it, and maintains evidence provenance from source material through to published content.
+EduOS is a multi-agent science publishing studio that produces evidence-grounded educational content for the CellNucleus project (cellnucleus.com). It targets cell biology, chromatin organization, and nuclear architecture topics with mandatory accuracy gates on all outputs. The system coordinates 42+ agents across writing, media, review, and promo workforces to transform research into compelling, accurate educational narratives.
 
----
+## Architecture
 
-## Mission
+EduOS uses a workforce-based architecture with specialized agent teams. The **DirectorAgent** orchestrates execution across four primary workforces: Writing (outline, narrative, and editorial), Media (scripting, video, visual assets), Review (multi-agent validation), and Promo (campaign planning). An **accuracy_reviewer_agent** serves as a mandatory gate—no content passes without accuracy verification. Evidence is tracked through a provenance system that indexes sources throughout the pipeline. Browser automation via Playwright enables live research and document upload.
 
-CellNucleus publishes rigorous, uncertainty-aware science content for advanced biology learners. The editorial standard is:
+## Agent Roster
 
-- **Separate established facts from hypotheses and open questions** — never present contested claims as settled
-- **Preserve uncertainty** — scripts acknowledge what is unknown, not just what is known
-- **Maintain provenance** — source material is indexed and linked throughout the review pipeline
-- **Reduce author bias** — AI-assisted synthesis integrates the broader literature without the perspective distortions of a single research program
-- **Stay current** — living reviews updated as the field evolves, not static snapshots
+**Coordination:**
+| Agent | Model | Role |
+|-------|-------|------|
+| director_agent | (varies) | Orchestrates all workforce execution |
 
-The long-term goal is to displace paywalled, author-biased review articles with openly accessible, AI-transparent, living scientific reviews — starting with cell nucleus and chromatin biology and expanding from there.
+**Writing Workforce (10):**
+| Agent | Model | Role |
+|-------|-------|------|
+| writer_agent | (varies) | Primary narrative generation |
+| outline_agent | (varies) | Content structure and outlining |
+| narrative_agent | (varies) | Story-driven explanations |
+| character_agent | (varies) | Character and persona development |
+| developmental_editor_agent | (varies) | Structural critique and revision |
+| line_editor_agent | (varies) | Line-level prose editing |
+| style_monitor_agent | (varies) | Consistency and style enforcement |
+| worldbuilding_agent | (varies) | Background and context development |
+| critique_agent | (varies) | Adversarial content review |
+| ingestion_agent | (varies) | Document import and processing |
 
----
+**Media Workforce (16):**
+| Agent | Model | Role |
+|-------|-------|------|
+| accuracy_reviewer_agent | (varies) | **MANDATORY gate** - science fact checking |
+| scriptwriter_agent | (varies) | Video script generation |
+| shorts_editor_agent | (varies) | Short-form video editing |
+| video_critic_agent | (varies) | Video quality assessment |
+| script_critic_agent | (varies) | Script quality review |
+| visual_critic_agent | (varies) | Visual asset critique |
+| thumbnail_brief_agent | (varies) | Thumbnail brief generation |
+| seo_agent | (varies) | SEO optimization |
+| channel_brand_agent | (varies) | Brand consistency management |
+| distribution_manager_agent | (varies) | Content distribution planning |
+| brand_manager_agent | (varies) | Brand asset management |
+| audio_planner_agent | (varies) | Audio/voiceover planning |
+| assembly_planner_agent | (varies) | Video assembly coordination |
+| research_agent | (varies) | Research and fact-finding |
+| site_manager_agent | (varies) | Website management |
+| browser_toolkit | (Playwright) | Browser automation for research |
 
-## CellNucleus Brand
+**Review Workforce (5):**
+| Agent | Model | Role |
+|-------|-------|------|
+| review_planner_agent | (varies) | Coordinate review process |
+| reviewer_a_agent | (varies) | Independent review (reviewer 1) |
+| reviewer_b_agent | (varies) | Independent review (reviewer 2) |
+| review_synthesizer_agent | (varies) | Synthesize reviews to decision |
+| review_publisher_agent | (varies) | Publish reviewed content |
 
-| Property | Value |
-|---|---|
-| Website | `https://www.cellnucleus.com` |
-| YouTube channel | CellNucleus |
-| Output style | Rigorous, uncertainty-aware educational publishing |
-| Target audience | Advanced biology learners, researchers, graduate students |
-| Source path | `C:/Users/mjhen/Github/cellnucleus.com` |
+**Promo Workforce (4):**
+| Agent | Model | Role |
+|-------|-------|------|
+| campaign_planner_agent | (varies) | Campaign strategy and planning |
+| promo_adapter_agent | (varies) | Adapt content for promotion |
+| story_hook_extractor_agent | (varies) | Extract promotional hooks |
+| spoiler_guardian_agent | (varies) | Avoid spoilers in promotion |
 
----
+## API Endpoints
 
-## Workflow
+- `POST /api/v1/execute` — Execute task through BaseOS pipeline
+- `POST /api/v1/chat` — Interactive chat with context
+- `POST /api/v1/evaluate` — Evaluate content quality
+- `WS /ws/telemetry` — Real-time telemetry
 
-1. Define a scientific question or hypothesis worth reviewing
-2. Collect source material and preserve provenance via document upload or folder import
-3. Run structured review passes with explicit evidence standards
-4. Synthesize the result into a canonical educational review artifact
-5. Package for web publication, YouTube production, and NotebookLM handoff
+## Frontend
 
----
+- `/workspace` — Main workspace
+- `/writing-studio` — Writing workflow
+- `/media-studio` — Media production
+- `/promo-studio` — Promotion campaigns
+- `/story-bible` — Story universe reference
+- `/brand-bible` — Brand guidelines
+- `/pipeline` — Pipeline visualization
+- `/memory` — Knowledge base
+- `/prompt-library` — Prompt templates
+- `/provenance` — Source tracking
 
-## Current Capabilities
+## Tech Stack
 
-- Project management with validated `writing`, `web`, and `youtube` domains
-- Document upload, folder import, artifact storage, and semantic document search
-- Project chat plus workflow-command planning and execution
-- Story bible, brand bible, project memory, and workspace memory surfaces
-- Pipeline builder and workforce execution across writing, media, promo, coordination, and review modules
-- Model routing and catalog refresh for OpenRouter, Google/Gemini, Ollama, OpenAI, and Anthropic
-- Media tools, render jobs, Google OAuth runtime status, Ollama bootstrap, and Telegram control surfaces
-- Accuracy review gate (`accuracy_reviewer`) mandatory for all media outputs
+- **Language:** Python 3.11+
+- **Backend:** FastAPI, Uvicorn
+- **Frontend:** Next.js, React
+- **Database:** SQLAlchemy, SQLite
+- **Memory:** ChromaDB
+- **AI/Agents:** litellm
+- **Browser Automation:** Playwright
+- **Document Processing:** PyMuPDF
 
----
+## Ports
 
-## Workforce Architecture
+- **Backend:** 8090
+- **Frontend:** 3090
 
-EduOS shares the same workforce architecture as StudioOS but is configured for science communication:
+## Configuration
 
-| Workforce | Science-specific role |
-|---|---|
-| **Writing** | Drafts evidence-anchored review sections and educational scripts |
-| **Review** | Accuracy reviewer, audience reviewer, council — all gate on evidence standards |
-| **Media** | Adapts reviewed content into YouTube scripts, shorts, and web articles |
-| **Promo** | Schedules content releases and extracts audience-appropriate hooks |
-| **Coordination** | Director sequences workforces and manages review dependencies |
+Environment variables:
+- `ACCURACY_GATE_REQUIRED` — Enable/disable mandatory accuracy review
+- `PROVENANCE_TRACKING` — Enable source tracking
+- `BROWSER_HEADLESS` — Run Playwright in headless mode
 
----
+## Dependencies
 
-## Repository Layout
+- **BaseOS:** baseos (local; inherited 11-step pipeline)
+- **AI:** litellm>=1.34.0
+- **Memory:** chromadb>=0.4.0
+- **Document:** PyMuPDF>=1.23.0
+- **Communication:** python-telegram-bot>=21.0.0
+- **Browser:** playwright
+- **MCP:** mcp>=1.2.0
 
-```
-EduOS/
-├── backend/
-│   ├── main.py                   FastAPI app
-│   ├── config.py                 Settings (Pydantic BaseSettings)
-│   ├── database.py               SQLAlchemy engine
-│   ├── database_models.py        ORM models
-│   ├── agents/
-│   │   ├── base_agent.py
-│   │   ├── registry.py
-│   │   └── workforces/           writing, review, media, promo, coordination
-│   ├── workflows/
-│   │   ├── pipeline.py           StudioPipeline — step execution with gate checks
-│   │   ├── planner.py            StudioPlan builder
-│   │   ├── gate.py               Gate evaluation (accuracy_reviewer is mandatory)
-│   │   ├── governance.py         Governance rules
-│   │   ├── artifact_contracts.py Typed artifact schemas
-│   │   └── state.py              SharedState — cross-step context
-│   └── services/
-│       ├── memory.py             Project and workspace memory
-│       ├── model_catalog.py      Model routing
-│       ├── media_tools.py        Media tool context
-│       ├── document_indexing.py  Source document ingestion and semantic search
-│       ├── render_jobs.py        Background render queue
-│       ├── youtube_feedback.py   YouTube analytics feedback loop
-│       ├── prompt_library.py     Reusable evidence-standard prompt templates
-│       └── telegram_control.py  Telegram remote control
-├── frontend/
-│   └── app/
-│       ├── workspace/            Project workspace and chat
-│       ├── writing-studio/       Draft creation interface
-│       ├── media-studio/         Script and video production
-│       ├── promo-studio/         Campaign planning
-│       ├── story-bible/          Scientific framework and world reference
-│       ├── brand-bible/          CellNucleus brand identity
-│       ├── pipeline/             Workflow pipeline builder
-│       ├── memory/               Project memory surfaces
-│       ├── prompt-library/       Prompt template library
-│       └── provenance/           Artifact and run history
-└── scripts/                      Dev helper scripts (backend, frontend, Redis, stack check)
-```
+## Key Features
 
----
+**Mandatory Accuracy Gate:** The accuracy_reviewer_agent is a blocking checkpoint. No content advances without accuracy verification against CellNucleus scientific standards.
 
-## Default Local Ports
+**Evidence Anchoring:** All claims are anchored to source documents. The provenance system tracks evidence through the entire pipeline—writing, media, and review.
 
-| Service | URL |
-|---|---|
-| Frontend | `http://127.0.0.1:3090` |
-| Backend | `http://127.0.0.1:8090` |
-| Backend health | `http://127.0.0.1:8090/api/v1/health` |
-| Redis | `redis://127.0.0.1:6379/0` |
-| Ollama | `http://127.0.0.1:11434` |
+**Uncertainty Language:** Enforces distinction between established facts and hypotheses. Maintains scientific rigor while remaining accessible.
 
----
+**Workforce Coordination:** Four specialized workforces operate in sequence or parallel:
+1. **Writing:** Outline → Narrative → Edit → Style Check
+2. **Media:** Script → Video → Assets → SEO
+3. **Review:** Multi-agent validation with synthesized decision
+4. **Promo:** Campaign planning and adaptation
 
-## Prerequisites
+**Browser Automation:** Playwright-based research toolkit enables live document lookup, fact-checking, and asset acquisition.
 
-- Python 3 with `venv`
-- Node.js with `npm`
-- At least one configured LLM provider key in `.env`
-- Redis (optional — for stack-check script parity)
-- Ollama (optional — for local autofill and local workflow routing)
-
----
-
-## Environment Setup
-
-1. Copy `.env.example` to `.env` at the repository root.
-2. Set at least one provider key: `OPENROUTER_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY`.
-3. Keep `NEXT_PUBLIC_API_URL=http://127.0.0.1:8090` unless targeting a different backend.
-4. For Google OAuth features, place your OAuth client JSON at the repo root as `google-oauth-client.json`, or set `GOOGLE_OAUTH_CLIENT_FILE`.
-
-Key environment variables:
-
-| Variable | Purpose |
-|---|---|
-| `NEXT_PUBLIC_API_URL` | Frontend target for the backend API |
-| `PROVIDER_PRIORITY` | LLM provider resolution order |
-| `DEFAULT_MODEL` | Default model for routing |
-| `LOCAL_AUTOFILL_MODEL` | Ollama model for local autofill |
-| `LOCAL_WORKFLOW_MODEL` | Ollama model for local workflow steps |
-| `GOOGLE_OAUTH_CLIENT_FILE` | Path to Google OAuth client JSON |
-| `CELLNUCLEUS_SITE_PATH` | Local path for the CellNucleus website workspace |
-| `AGENT0_WORKDIR` | Base directory for Agent0 project imports |
-| `TELEGRAM_BOT_TOKEN` | Optional Telegram remote control |
-| `TELEGRAM_POLLING_ENABLED` | Enable Telegram polling |
+**Artifact Persistence:** All outputs (drafts, scripts, approved content) stored with full provenance links.
 
 ---
 
-## Installation
-
-### Windows (PowerShell)
-
-```powershell
-py -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r .\backend\requirements.txt
-cd .\frontend && npm install
-```
-
-### Unix
-
-```bash
-python3 -m venv .venv
-./.venv/bin/python -m pip install -r ./backend/requirements.txt
-cd frontend && npm install
-```
-
----
-
-## Running
-
-### Windows
-
-```powershell
-# Backend
-powershell -ExecutionPolicy Bypass -File .\scripts\dev_backend.ps1
-
-# Frontend
-powershell -ExecutionPolicy Bypass -File .\scripts\dev_frontend.ps1
-
-# Both
-powershell -ExecutionPolicy Bypass -File .\scripts\dev_stack.ps1
-```
-
-### Unix
-
-```bash
-./scripts/dev_backend.sh
-./scripts/dev_frontend.sh
-```
-
----
-
-## Testing
-
-```bash
-cd backend
-../.venv/bin/pytest tests
-```
-
-```bash
-cd frontend
-npm run build
-```
-
----
-
-## Notes
-
-- Frontend redirects `/` to `/workspace`.
-- The `accuracy_reviewer` gate is mandatory for all media outputs — content that fails the accuracy gate is blocked from advancing to production.
-- ResearchAgent integration: research synthesis outputs from ResearchAgent can be imported directly as EduOS project source material, creating a pipeline from lab findings to CellNucleus content.
+*EduOS extends BaseOS with 42+ science communication specialists, mandatory accuracy gates, and evidence tracking for educational publishing.*
