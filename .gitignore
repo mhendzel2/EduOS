@@ -32,3 +32,34 @@ frontend/dist-build
 
 .DS_Store
 Thumbs.db
+
+
+# --- WebSMBOSS Auto-Standardized Ignores ---
+**/.env
+**/.api_keys
+**/secrets.json
+**/*credentials*.json
+.Python
+*.db
+*.sqlite
+*.sqlite3
+*.chroma
+chroma_db/
+*.idx
+*.csv
+*.parquet
+*.h5
+.venv
+.venv*/
+env/
+ENV/
+*.log
+logs/
+error*.txt
+.idea/
+.vscode/
+node_modules/
+dist/
+build/
+.next/
+out/
