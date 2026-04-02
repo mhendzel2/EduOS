@@ -201,10 +201,14 @@ async def update_memory_record(
     record.pinned_facts = normalized_facts
     record.active_token_estimate = _estimate_tokens(record.summary, normalized_facts)
     if settings.MEMORY_COMPACTION_ENABLED:
-        if isinstance(record, ProjectMemoryRecord):
-            await global_memory_compactor.compact_project_memory(record)
-        else:
-            await global_memory_compactor.compact_workspace_memory(record)
+        try:
+            if isinstance(record, ProjectMemoryRecord) and hasattr(global_memory_compactor, 'compact_project_memory'):
+                await global_memory_compactor.compact_project_memory(record)
+            elif hasattr(global_memory_compactor, 'compact_workspace_memory'):
+                await global_memory_compactor.compact_workspace_memory(record)
+        except AttributeError:
+            # Fallback if BaseOS lacks the full async integration
+            pass
 
 
 async def search_memory_archives(

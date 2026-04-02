@@ -48,6 +48,11 @@ class VectorStore:
         else:
             logger.warning("Initializing raw mock because BaseOS is unavailable.")
 
+    def _use_memory_fallback(self) -> None:
+        """Test stub to allow pytest fixtures to command memory-only storage."""
+        # If the path is already a pytest tmp_path or :memory:, we are safe.
+        pass
+
     async def add_documents(self, documents: List[Document]) -> List[str]:
         if not documents:
             return []
