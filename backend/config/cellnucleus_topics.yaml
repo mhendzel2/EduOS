@@ -1,0 +1,16 @@
+topics:
+  - slug: "ab_compartment_phase_separation"
+    dominant_hypothesis: "Liquid-liquid phase separation drives A/B compartment formation"
+    phenomenon: "A/B chromatin compartmentalization as measured by Hi-C saddle plots"
+    primary_readout: "PC1 eigenvector strength, compartment score B(s), saddle plot enrichment"
+    competing_models:
+      - "Polymer-polymer phase separation / bridging-induced attraction"
+      - "Block copolymer microphase separation (Flory-Huggins)"
+      - "Loop extrusion competition model (cohesin/NIPBL antagonism)"
+    key_players: "HP1α, BRD4, MED1, NIPBL/cohesin, SUV39H1/2, H3K9me3, H3K27ac, CTCF"
+    perturbation_tools: "dTAG, AID degron, optogenetics (CasDrop), Liquid Chromatin Hi-C"
+    confound_to_avoid: >
+      Do NOT accept 1,6-hexanediol data as Tier 1 evidence. Do NOT conflate
+      in vitro IDR droplet formation with in vivo compartment causality.
+    reviewer_a_stance: "Argue that LLPS is the primary driver. Steelman the strongest evidence."
+    reviewer_b_stance: "Argue that PPPS/block copolymer microphase separation better explains the data."

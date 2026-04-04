@@ -140,7 +140,7 @@ export default function TelegramControlCard() {
             </p>
           ) : (
             <p className="mt-3 text-xs text-slate-500">
-              Use Telegram commands such as <code className="rounded bg-slate-900 px-1 py-0.5 text-sky-300">/projects</code>,
+              Use Telegram commands such as <code className="rounded bg-slate-900 px-1 py-0.5 text-sky-300">/status</code>,
               <code className="ml-1 rounded bg-slate-900 px-1 py-0.5 text-sky-300">/project</code>,
               <code className="ml-1 rounded bg-slate-900 px-1 py-0.5 text-sky-300">/scope</code>, and plain-text tasks to
               drive StudioOS workflow commands remotely.

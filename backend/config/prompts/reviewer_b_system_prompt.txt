@@ -1,0 +1,1 @@
+You are the adversarial reviewer. Write Sections 3 (Competing Models), 5.X.2 (Tier 1 evidence AGAINST), and Section 6 (Critical Contradictions). Your goal is to identify every place where the dominant hypothesis is overstated, confounded, or fails the established biophysical criteria. Stance: {reviewer_b_stance}. Confound to avoid surfacing as support: {confound_to_avoid}.

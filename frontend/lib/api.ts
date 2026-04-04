@@ -37,9 +37,9 @@ function resolveApiHost(): string {
     return configured.replace(/\/+$/, '');
   }
   if (typeof window !== 'undefined' && window.location?.hostname) {
-    return `${window.location.protocol}//${window.location.hostname}:8005`;
+    return `${window.location.protocol}//${window.location.hostname}:8008`;
   }
-  return 'http://127.0.0.1:8005';
+  return 'http://127.0.0.1:8008';
 }
 
 const API_HOST = resolveApiHost();
@@ -58,7 +58,7 @@ function resolveApiHostCandidates(primaryHost: string): string[] {
     const hostname = url.hostname.toLowerCase();
     const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
     if (isLocalHost) {
-      for (const port of ['8005', '8000']) {
+      for (const port of ['8008', '8005', '8000']) {
         const candidate = `${url.protocol}//${hostname}:${port}`;
         candidates.add(candidate);
       }
@@ -585,6 +585,13 @@ export async function executeTask(
   });
 }
 
+export async function executeDocumentReview(data: { pdf_path: string; doc_type: "GRANT" | "MANUSCRIPT"; output_level: "CRITIQUE_ONLY" | "DEVELOPMENTAL_EDIT" | "FULL_POLISH"; critique_file?: string }): Promise<{status: string, message: string}> {
+  return fetchAPI('/document/review', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
 export async function sendLocalChat(data: {
   message: string;
   history?: LocalChatMessage[];
@@ -667,17 +674,6 @@ export async function submitPromptFeedback(
   data: PromptFeedbackSubmitRequest,
 ): Promise<PromptFeedbackSubmitResponse> {
   return fetchAPI(`/prompt-learning/feedback/${encodeURIComponent(telemetryId)}`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
-export async function invokeCrossOSHandoff(data: {
-  session_id: string;
-  source_os: string;
-  target_os: string;
-}): Promise<{ status: string; message: string }> {
-  return fetchAPI('/handoff', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -1033,23 +1029,42 @@ export async function uploadDocument(
   if (options?.sourcePath) {
     form.append('source_path', options.sourcePath);
   }
-  const res = await fetch(`${API_BASE_URL}/documents/upload`, {
-    method: 'POST',
-    body: form,
-  });
-  if (!res.ok) {
-    let detail = res.statusText;
+
+  let lastError: unknown;
+  for (const host of API_HOST_CANDIDATES) {
+    let res: Response;
     try {
-      const payload = await res.json();
-      if (typeof payload?.detail === 'string' && payload.detail.trim()) {
-        detail = payload.detail;
-      }
-    } catch {
-      // Keep the status text when the response body is not JSON.
+      res = await fetch(`${host}/api/v1/documents/upload`, {
+        method: 'POST',
+        body: form,
+      });
+    } catch (error) {
+      lastError = error;
+      continue; // Network or CORS error, try next candidate
     }
-    throw new Error(`Upload failed: ${detail}`);
+
+    if (!res.ok) {
+      // If it's 404 or 502, it might be the wrong backend microservice answering exactly on this port.
+      if (res.status === 404 || res.status === 502) {
+        lastError = new Error(`Host ${host} returned ${res.status}`);
+        continue;
+      }
+
+      let detail = res.statusText;
+      try {
+        const payload = await res.json();
+        if (typeof payload?.detail === 'string' && payload.detail.trim()) {
+          detail = payload.detail;
+        }
+      } catch {
+        // Keep the status text when the response body is not JSON.
+      }
+      throw new Error(`Upload failed: ${detail}`);
+    }
+    return res.json() as Promise<DocumentUploadResponse>;
   }
-  return res.json() as Promise<DocumentUploadResponse>;
+
+  throw lastError instanceof Error ? lastError : new Error('Failed to fetch from all configured API hosts');
 }
 
 export async function listProjectDocuments(

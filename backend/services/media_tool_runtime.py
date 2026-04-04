@@ -528,18 +528,16 @@ def _estimate_duration_seconds(text: str, words_per_minute: int) -> float:
     return max(3.0, min(seconds, 600.0))
 
 
+from services.descript_fallback import synthesize_narration
+
 def _build_placeholder_audio_command(
     *,
+    text: str,
     output_path: str,
     duration_seconds: float,
     output_format: str,
 ) -> list[str]:
-    command = ["ffmpeg", "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", f"{duration_seconds:.2f}"]
-    if output_format == "wav":
-        command.extend(["-acodec", "pcm_s16le", output_path])
-        return command
-    command.extend(["-q:a", "9", "-acodec", "libmp3lame", output_path])
-    return command
+    return synthesize_narration(text, output_path, duration_seconds, output_format)
 
 
 def _build_placeholder_video_command(
@@ -721,6 +719,7 @@ async def execute_media_tool_action(
         output_filename = _trimmed_string(arguments.get("output_filename")) or f"{title.lower().replace(' ', '-')}-narration.{output_format}"
         safe_filename, output_path = _create_output_path(project.id, output_filename, document_store)
         command = _build_placeholder_audio_command(
+            text=text,
             output_path=str(output_path),
             duration_seconds=duration_seconds or 3.0,
             output_format=output_format,

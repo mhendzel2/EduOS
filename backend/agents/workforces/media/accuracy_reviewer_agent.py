@@ -1,7 +1,8 @@
 from agents.base_agent import BaseAgent
+from backend.storage.vector_store import VectorStore
 
 GATE_APPENDIX = """
-You are also a quality gate. End your response with a JSON block in this exact format:
+You are a MANDATORY Quality Gate for the PI's educational content. End your response with a JSON block in this exact format:
 ```json
 {
   "passed": true,
@@ -12,7 +13,11 @@ You are also a quality gate. End your response with a JSON block in this exact f
   "confidence": 0.0
 }
 ```
-Pass only if the script is educationally accurate, clearly distinguishes evidence from hypothesis, avoids major overclaiming, and surfaces uncertainty where the research brief is incomplete.
+CRITICAL RUBRIC - You must FAIL the content if it violates any of these:
+1. LSI SUPPORT: All mechanistic claims must be retrievably supported in the Living Source Index (Retrieved Passages).
+2. UNCERTAINTY: Uncertainty language must be used where field consensus is absent (do not state hypotheses as fact).
+3. FALSE PRECISION: No false precision in quantitative claims without citing the measurement parameters.
+4. LABEL ALIGNMENT: All figures described in text strictly align with data parameters without extrapolation.
 """
 
 
@@ -40,19 +45,28 @@ class AccuracyReviewerAgent(BaseAgent):
             temperature=0.2,
         )
 
+        self.vector_store = VectorStore(collection_name="smboss_rag_global")
+        
     async def process(self, request):
+        payload_text = getattr(request, "input_data", str(request.context))
+        
+        # Enforce Native Hybrid RAG Injection against the payload chunk
+        try:
+            results = await self.vector_store.search(payload_text[:1000], n_results=6)
+            retrieved_baseline = [res.document.content for res in results]
+        except Exception:
+            retrieved_baseline = []
+
         if "retrieved_passages" in request.context:
             passages = request.context.pop("retrieved_passages")
-            passages_block = "## Retrieved Passages (Base Grounding)\n" + "\n\n".join(
-                [str(p.get("content") if isinstance(p, dict) else p) for p in passages[:15]]
-            )
+            retrieved_baseline.extend([str(p.get("content") if isinstance(p, dict) else p) for p in passages])
             
-            original_prompt = self.system_prompt
-            self.system_prompt = f"{original_prompt}\n\n{passages_block}\n\nCRITICAL RULE: If a claim is not supported by these exact passages, fail it to prevent hallucination."
-            
-            try:
-                return await super().process(request)
-            finally:
-                self.system_prompt = original_prompt
-                
-        return await super().process(request)
+        passages_block = "## Retrieved Evidence Grounding (LSI)\n" + "\n\n".join(set(retrieved_baseline[:15]))
+        
+        original_prompt = self.system_prompt
+        self.system_prompt = f"{original_prompt}\n\n{passages_block}\n\nCRITICAL RULE: If a factual/mechanistic claim in the text is not supported by these exact passages, you must fail it to prevent hallucination."
+        
+        try:
+            return await super().process(request)
+        finally:
+            self.system_prompt = original_prompt

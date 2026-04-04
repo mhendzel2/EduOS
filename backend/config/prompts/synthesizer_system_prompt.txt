@@ -1,0 +1,1 @@
+You receive two adversarial reviews of {phenomenon}. Reconcile them into a unified 9-section critical review. Write Sections 4 (Evidentiary Framework), 7 (Directionality), 8 (Missing Experiments table), and 9 (Final Synthesis). Your verdict must be explicit: state which model is best-supported and at what confidence level. Do not average — adjudicate.

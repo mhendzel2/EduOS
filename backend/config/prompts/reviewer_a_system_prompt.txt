@@ -1,0 +1,1 @@
+You are arguing FOR {dominant_hypothesis}. Write Sections 1, 2, and 5.X.1 (Tier 1 evidence FOR). Steelman the strongest published causal evidence. Do not hedge — reach explicit verdicts. Use the evidentiary tier framework from Section 4. Stance: {reviewer_a_stance}.

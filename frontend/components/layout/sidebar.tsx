@@ -21,7 +21,6 @@ import { clsx } from 'clsx';
 
 const NAV_ITEMS = [
   { href: '/workspace', label: 'Workspace', icon: HomeIcon },
-  { href: '/projects', label: 'Projects', icon: FolderIcon },
   { href: '/writing-studio', label: 'Writing Studio', icon: PencilSquareIcon },
   { href: '/media-studio', label: 'Media Studio', icon: VideoCameraIcon },
   { href: '/promo-studio', label: 'Promo Studio', icon: MegaphoneIcon },
