@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import sys; sys.path.insert\\(0, '/c/Users/mjhen/Github/WebSMBOSS/EduOS/backend'\\); from workflows.planner import ResearchPlanner; print\\(ResearchPlanner.__doc__\\)\")"
+    ]
+  }
+}

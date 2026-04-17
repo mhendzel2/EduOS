@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -28,6 +29,77 @@ _BINARY_EXTENSIONS = {
     ".wav",
 }
 
+# ---------------------------------------------------------------------------
+# Section detection
+# ---------------------------------------------------------------------------
+
+# Standard biology paper section headers — order matters (matched top-down)
+_SECTION_PATTERNS: list[tuple[str, re.Pattern]] = [
+    ("abstract",      re.compile(r"^\s*abstract\s*$",                         re.IGNORECASE | re.MULTILINE)),
+    ("introduction",  re.compile(r"^\s*introduction\s*$",                     re.IGNORECASE | re.MULTILINE)),
+    ("results",       re.compile(r"^\s*results?\s*$",                         re.IGNORECASE | re.MULTILINE)),
+    ("methods",       re.compile(r"^\s*(?:materials?\s+(?:and\s+)?)?methods?\s*$",  re.IGNORECASE | re.MULTILINE)),
+    ("discussion",    re.compile(r"^\s*discussion\s*$",                       re.IGNORECASE | re.MULTILINE)),
+    ("conclusion",    re.compile(r"^\s*conclusions?\s*$",                     re.IGNORECASE | re.MULTILINE)),
+    ("references",    re.compile(r"^\s*references?\s*$",                      re.IGNORECASE | re.MULTILINE)),
+    ("supplementary", re.compile(r"^\s*supplementar(?:y|ies)\s",              re.IGNORECASE | re.MULTILINE)),
+]
+
+# Figure/table reference capture
+_RE_FIGURE_REF = re.compile(
+    r"\b((?:Fig(?:ure)?|Suppl?\.?\s*Fig(?:ure)?|Extended\s+Data\s+Fig(?:ure)?|"
+    r"Table|Suppl?\.?\s*Table)\s*\d+[A-Za-z]?(?:[-–]\d+[A-Za-z]?)?)\b",
+    re.IGNORECASE,
+)
+
+
+def _detect_sections(text: str) -> dict[str, str]:
+    """Return a dict mapping section_label -> section_text.
+
+    If fewer than 2 sections are detected, returns {"body": text} as a fallback
+    with a "low_confidence" key set to True (accessible via the dict itself).
+    """
+    # Find all section header positions
+    hits: list[tuple[int, str]] = []
+    for label, pattern in _SECTION_PATTERNS:
+        for m in pattern.finditer(text):
+            hits.append((m.start(), label))
+
+    # Sort by position; deduplicate overlapping labels
+    hits.sort(key=lambda x: x[0])
+    seen_labels: set[str] = set()
+    unique_hits: list[tuple[int, str]] = []
+    for pos, label in hits:
+        if label not in seen_labels:
+            seen_labels.add(label)
+            unique_hits.append((pos, label))
+
+    if len(unique_hits) < 2:
+        return {"body": text, "_low_confidence": True}  # type: ignore[return-value]
+
+    sections: dict[str, str] = {}
+    for i, (start, label) in enumerate(unique_hits):
+        end = unique_hits[i + 1][0] if i + 1 < len(unique_hits) else len(text)
+        sections[label] = text[start:end].strip()
+
+    return sections
+
+
+def _extract_figure_refs(text: str) -> list[str]:
+    seen: set[str] = set()
+    refs: list[str] = []
+    for m in _RE_FIGURE_REF.finditer(text):
+        val = m.group(1).strip()
+        key = val.lower()
+        if key not in seen:
+            seen.add(key)
+            refs.append(val)
+    return refs
+
+
+# ---------------------------------------------------------------------------
+# Flat chunker (unchanged, used as fallback)
+# ---------------------------------------------------------------------------
 
 def _chunk_documents(text: str, metadata: dict, *, id_prefix: Optional[str] = None) -> list[Document]:
     chunks: list[Document] = []
@@ -50,6 +122,105 @@ def _chunk_documents(text: str, metadata: dict, *, id_prefix: Optional[str] = No
     return chunks
 
 
+# ---------------------------------------------------------------------------
+# Section-aware chunker
+# ---------------------------------------------------------------------------
+
+def section_aware_chunk_documents(
+    text: str,
+    metadata: dict,
+    *,
+    id_prefix: Optional[str] = None,
+) -> list[Document]:
+    """Chunk *text* with section awareness, nomenclature resolution, and
+    methodological fingerprinting on the Methods section.
+
+    Each chunk's metadata includes:
+        - section: which paper section the chunk came from
+        - figure_refs: pipe-delimited figure/table references found in the chunk
+        - mf_* keys from MethodologicalFingerprint (methods section only,
+          then propagated to all chunks from the same document)
+        - mf_rigor_score, mf_rigor_flags (always present)
+    """
+    # Lazy imports to avoid startup overhead
+    try:
+        from utils.nomenclature_resolver import resolve_text
+    except ImportError:
+        def resolve_text(t: str) -> str:  # type: ignore[misc]
+            return t
+
+    try:
+        from services.methodological_fingerprinting import fingerprint_text, fingerprint_empty
+    except ImportError:
+        def fingerprint_text(t: str, **_):  # type: ignore[misc]
+            from services.methodological_fingerprinting import fingerprint_empty
+            return fingerprint_empty()
+        def fingerprint_empty():  # type: ignore[misc]
+            class _FP:
+                rigor_score = 0.0
+                rigor_flags: list = []
+                def to_metadata(self): return {"mf_rigor_score": 0.0, "mf_rigor_flags": ""}
+            return _FP()
+
+    sections = _detect_sections(text)
+    low_confidence: bool = bool(sections.pop("_low_confidence", False))
+
+    if low_confidence:
+        logger.debug("section_aware_chunk_documents: fewer than 2 sections detected, falling back to flat chunking")
+        resolved = resolve_text(text)
+        fp = fingerprint_text(resolved)
+        fp_meta = fp.to_metadata()
+        base = {**metadata, **fp_meta, "section": "body", "low_confidence_sections": True}
+        return _chunk_documents(resolved, base, id_prefix=id_prefix)
+
+    # Run fingerprinting on the methods section if present
+    methods_text = sections.get("methods", "")
+    if methods_text:
+        fp = fingerprint_text(methods_text, methods_only=True)
+    else:
+        fp = fingerprint_empty()
+    fp_meta = fp.to_metadata()
+
+    chunks: list[Document] = []
+    global_chunk_index = 0
+
+    for section_label, section_text in sections.items():
+        resolved_section = resolve_text(section_text)
+        section_figure_refs = _extract_figure_refs(resolved_section)
+
+        # Chunk within the section
+        start = 0
+        while start < len(resolved_section):
+            end = start + _CHUNK_SIZE
+            chunk_text = resolved_section[start:end].strip()
+            if chunk_text:
+                chunk_figure_refs = _extract_figure_refs(chunk_text)
+                chunk_id = f"{id_prefix}:chunk:{global_chunk_index}" if id_prefix else None
+                chunk_meta = {
+                    **metadata,
+                    **fp_meta,
+                    "section": section_label,
+                    "chunk_index": global_chunk_index,
+                    "figure_refs": "|".join(chunk_figure_refs) if chunk_figure_refs else "",
+                    "section_figure_refs": "|".join(section_figure_refs) if section_figure_refs else "",
+                    "low_confidence_sections": False,
+                }
+                chunks.append(Document(id=chunk_id, content=chunk_text, metadata=chunk_meta))
+                global_chunk_index += 1
+            start += _CHUNK_SIZE - _CHUNK_OVERLAP
+
+    if not chunks:
+        # Last-resort fallback
+        resolved = resolve_text(text)
+        return _chunk_documents(resolved, {**metadata, **fp_meta}, id_prefix=id_prefix)
+
+    return chunks
+
+
+# ---------------------------------------------------------------------------
+# Public entry points
+# ---------------------------------------------------------------------------
+
 async def build_vector_documents_for_file(
     path: str,
     *,
@@ -61,7 +232,7 @@ async def build_vector_documents_for_file(
         return []
 
     metadata = {**base_metadata, "document_id": document_id, "source_file": Path(path).name}
-    chunked = _chunk_documents(text_content, metadata, id_prefix=document_id)
+    chunked = section_aware_chunk_documents(text_content, metadata, id_prefix=document_id)
     if chunked:
         return chunked
 
@@ -110,7 +281,7 @@ def build_vector_documents_for_structured_document(
         "citation": citation,
         "authors": authors,
     }
-    chunked = _chunk_documents(normalized_text, metadata, id_prefix=document_id)
+    chunked = section_aware_chunk_documents(normalized_text, metadata, id_prefix=document_id)
     if chunked:
         return chunked
     return [Document(id=document_id, content=normalized_text, metadata=metadata)]
