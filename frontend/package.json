@@ -11,8 +11,12 @@
   },
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.0",
+    "@google/genai": "^1.50.1",
     "@heroicons/react": "^2.1.1",
     "clsx": "^2.1.0",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^1.8.0",
+    "motion": "^12.38.0",
     "next": "15.2.9",
     "plotly.js-basic-dist-min": "^3.4.0",
     "react": "^19",
